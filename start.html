@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Black Vienna Mini</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<div class="game-container">
+			<div
+				class="player-zone"
+				id="player-info"
+				style="justify-content: center"
+			>
+				<h2 id="current-player-label"></h2>
+				<div class="player-hand" id="player-hand">
+					<div class="card-row" id="player-cards"></div>
+				</div>
+			</div>
+
+			<div class="info-board">
+				<div class="query-section" id="query-cards"></div>
+				<div
+					id="ask-buttons"
+					class="ask-buttons"
+					style="display: none"
+				></div>
+			</div>
+
+			<div class="info-board two-column">
+				<div class="log" id="log-box">
+					<strong>Query Log:</strong><br />
+				</div>
+			</div>
+
+			<div class="player-zone" style="justify-content: center">
+				<div class="player-hand" id="your-hand">
+					Your Hand:
+					<div class="card-row" id="your-cards"></div>
+				</div>
+			</div>
+
+			<button id="next-turn" style="display: none">
+				Start Next Player's Turn
+			</button>
+
+			<div class="info-board">
+				<h3>Guess the Hidden Card</h3>
+				<div class="card-row" id="guess-options"></div>
+				<button id="guess-button">Guess</button>
+			</div>
+		</div>
+		<script src="script.js"></script>
+	</body>
+</html>

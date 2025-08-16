@@ -1,0 +1,207 @@
+body {
+	font-family: sans-serif;
+	margin: 0;
+	background: #f7f7f7;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+}
+
+.game-container {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	width: 90%;
+	max-width: 900px;
+	padding: 20px;
+}
+
+/* Player Zones */
+.player-zone {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.player-hand {
+	background: #fff;
+	padding: 10px;
+	border-radius: 8px;
+	box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	transition: background 0.2s;
+}
+
+.ai-player.hoverable:hover {
+	background-color: #e9f5ff;
+	cursor: pointer;
+}
+
+/* Cards */
+.card-row {
+	display: flex;
+	gap: 10px;
+	margin-top: 5px;
+	justify-content: center;
+}
+
+.card {
+	width: 40px;
+	height: 60px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: bold;
+	font-size: 1.2rem;
+	background: #fff;
+	border: 2px solid #333;
+}
+
+.card.back {
+	background: #bbb;
+	color: transparent;
+	border: 2px solid white;
+	box-shadow: 0 0 0 2px black;
+}
+
+.card.back.left {
+	background: #f2cccc;
+}
+
+.card.back.right {
+	background: #ccefd1;
+}
+
+/* Query Cards */
+.query-section {
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.query-card {
+	background: #e0f0ff;
+	border: 1px solid #339;
+	padding: 10px 15px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: bold;
+	min-width: 100px;
+	text-align: center;
+	transition: background 0.2s;
+}
+
+.query-card:hover {
+	background: #c8e2ff;
+}
+
+.query-card.selected-query {
+	background-color: #ffd966;
+	border-color: #cc9900;
+}
+
+/* Info and Log */
+.info-board {
+	text-align: center;
+	margin-top: 20px;
+}
+
+.log {
+	background: #fff;
+	border: 1px solid #ccc;
+	padding: 10px;
+	max-height: 150px;
+	overflow-y: auto;
+	font-size: 0.9rem;
+	width: 100%;
+	max-width: 600px;
+	margin: 0 auto;
+	box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+	border-radius: 6px;
+}
+
+/* Guessing */
+.guess-option {
+	cursor: pointer;
+	transition: transform 0.2s, background 0.2s;
+}
+
+.guess-option:hover {
+	transform: scale(1.1);
+	background: #e0e0e0;
+}
+
+.guess-option.selected {
+	background: #aee0ae;
+	border-color: green;
+}
+
+/* Buttons */
+button {
+	padding: 8px 14px;
+	margin-top: 10px;
+	border: none;
+	border-radius: 4px;
+	background: #339;
+	color: white;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+button:hover {
+	background: #227;
+}
+
+.ask-buttons {
+	margin-top: 10px;
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+}
+
+.ask-buttons button {
+	padding: 6px 12px;
+	border: none;
+	background-color: #333;
+	color: white;
+	border-radius: 5px;
+	cursor: pointer;
+	font-family: inherit;
+}
+
+/* Hint Button */
+#hint-button {
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#hint-button:hover {
+	transform: scale(1.1);
+	box-shadow: 0 0 12px 4px rgba(255, 255, 150, 0.7);
+}
+
+/* Layout Utilities */
+.two-column {
+	display: flex;
+	gap: 15px;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+
+/* Special Effects */
+.hoverable {
+	cursor: pointer;
+	box-shadow: 0 0 10px #00bcd4;
+	transform: scale(1.05);
+	transition: all 0.3s ease;
+}
+
+.card.red-card {
+	color: red;
+	border-color: darkred;
+}
