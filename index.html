@@ -8,90 +8,310 @@
 		<style>
 			body {
 				margin: 0;
-				background: linear-gradient(to bottom, #1a1a1a, #2d2d2d);
-				font-family: "Segoe UI", sans-serif;
+				min-height: 100vh;
+				font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+				background: radial-gradient(circle at 10% 20%, #ffe6b0 0, transparent 35%),
+					radial-gradient(circle at 80% 10%, #c9f5ff 0, transparent 30%),
+					radial-gradient(circle at 50% 80%, #f2ffe5 0, transparent 35%),
+					#fefbe3;
+				color: #1f2a33;
 				display: flex;
-				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				min-height: 100vh;
-				color: #e0e0e0;
+				overflow: hidden;
 			}
 
-			.title {
-				font-size: 4rem;
-				font-weight: 700;
-				color: #e0e0e0;
-				letter-spacing: 2px;
+			.hero {
+				position: relative;
+				text-align: center;
+				padding: 60px 24px;
+				border-radius: 24px;
+				background: rgba(255, 255, 255, 0.8);
+				box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+				max-width: 720px;
+				width: 90%;
+				backdrop-filter: blur(6px);
+			}
+
+			.hero h1 {
+				margin: 0 0 12px;
+				font-size: 3.4rem;
+				letter-spacing: 1.5px;
 				text-transform: uppercase;
-				text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
-				margin-bottom: 3rem;
-				animation: fadeIn 1s ease-out;
 			}
 
-			@keyframes fadeIn {
-				from {
-					opacity: 0;
-					transform: translateY(-20px);
-				}
-				to {
-					opacity: 1;
+			.hero p {
+				margin: 0 0 28px;
+				font-size: 1.1rem;
+				color: #3c4c53;
+			}
+
+			.btn-primary {
+				padding: 14px 28px;
+				border: none;
+				border-radius: 14px;
+				background: linear-gradient(135deg, #ff7f50, #ffb347);
+				color: #1c0f0f;
+				font-weight: 800;
+				font-size: 1.1rem;
+				cursor: pointer;
+				box-shadow: 0 16px 28px rgba(255, 127, 80, 0.35);
+				transition: transform 0.2s, box-shadow 0.2s;
+			}
+
+			.btn-primary:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 20px 32px rgba(255, 127, 80, 0.45);
+			}
+
+			.float-icons {
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.icon {
+				position: absolute;
+				width: 64px;
+				height: 64px;
+				border-radius: 16px;
+				background: rgba(255, 255, 255, 0.8);
+				box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+				display: grid;
+				place-items: center;
+				font-size: 28px;
+				animation: float 6s ease-in-out infinite;
+			}
+
+			.icon:nth-child(1) {
+				top: 10%;
+				left: 12%;
+			}
+			.icon:nth-child(2) {
+				bottom: 14%;
+				left: 8%;
+				animation-delay: 1s;
+			}
+			.icon:nth-child(3) {
+				top: 12%;
+				right: 14%;
+				animation-delay: 1.8s;
+			}
+			.icon:nth-child(4) {
+				bottom: 12%;
+				right: 10%;
+				animation-delay: 2.4s;
+			}
+
+			@keyframes float {
+				0%,
+				100% {
 					transform: translateY(0);
 				}
+				50% {
+					transform: translateY(-10px);
+				}
 			}
 
-			.button-group {
-				display: flex;
-				gap: 2rem;
-				flex-wrap: wrap;
+			.modal-overlay {
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.45);
+				display: none;
+				align-items: center;
+				justify-content: center;
+				z-index: 10;
 			}
 
-			.mode-btn {
-				padding: 1rem 2.5rem;
-				font-size: 1.1rem;
-				font-weight: 600;
-				color: #f0f0f0;
-				background-color: #111;
-				border: 2px solid #666;
-				border-radius: 6px;
+			.modal {
+				background: #fffdf5;
+				border-radius: 16px;
+				padding: 20px;
+				min-width: 320px;
+				max-width: 420px;
+				box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+			}
+
+			.modal h3 {
+				margin-top: 0;
+			}
+
+			.modal .choices {
+				display: grid;
+				gap: 10px;
+				margin-top: 12px;
+			}
+
+			.choice-btn {
+				padding: 12px;
+				border-radius: 10px;
+				border: 1px solid #e8d7a0;
+				background: #fffaf0;
+				font-weight: 700;
 				cursor: pointer;
-				transition: all 0.2s ease;
+				transition: all 0.2s;
 			}
 
-			.mode-btn:hover {
-				background-color: #222;
-				border-color: #999;
-				transform: scale(1.05);
+			.choice-btn:hover {
+				background: #ffecc2;
+				transform: translateY(-1px);
 			}
 
-			.footer {
-				position: absolute;
-				bottom: 1.5rem;
-				font-size: 0.85rem;
-				color: #888;
-				letter-spacing: 1px;
+			.player-select {
+				width: 100%;
+				padding: 10px;
+				border-radius: 10px;
+				border: 1px solid #e8d7a0;
+				background: #fffaf0;
+				font-weight: 700;
 			}
 		</style>
 	</head>
 	<body>
-		<div class="title">Detectives</div>
-
-		<div class="button-group">
-			<button class="mode-btn" onclick="startGame('easy')">Easy</button>
-			<button class="mode-btn" onclick="startGame('medium')">
-				Medium
-			</button>
-			<button class="mode-btn" onclick="startGame('hard')">Hard</button>
+		<div class="float-icons">
+			<div class="icon">🕵️</div>
+			<div class="icon">🔍</div>
+			<div class="icon">🗺️</div>
+			<div class="icon">🕰️</div>
+		</div>
+		<div class="hero">
+			<h1>Detectives</h1>
+			<p>A quiet city. A missing card. Assemble clues and unmask the hidden trio.</p>
+			<button class="btn-primary" id="play-btn">Play Game</button>
 		</div>
 
-		<div class="footer">
-			A quiet city. A missing card. Begin the investigation.
+		<div class="modal-overlay" id="mode-modal">
+			<div class="modal">
+				<h3>Choose a mode</h3>
+				<div class="choices">
+					<button class="choice-btn" id="fast-game">Fast Game</button>
+					<button class="choice-btn" id="long-game">Long Game</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal-overlay" id="players-modal">
+			<div class="modal">
+				<h3>Long Game</h3>
+				<label for="player-count-input">Choose number of players</label>
+				<select id="player-count-input" class="player-select">
+					<option value="3">3 players</option>
+					<option value="4">4 players</option>
+					<option value="5">5 players</option>
+					<option value="6">6 players</option>
+				</select>
+				<div id="bot-options" style="margin-top: 12px; display: block">
+					<label for="bot-count-input">Bots (only for 3-player game)</label>
+					<select id="bot-count-input" class="player-select">
+						<option value="0">3 humans</option>
+						<option value="1">2 humans, 1 bot</option>
+						<option value="2">1 human, 2 bots</option>
+					</select>
+				</div>
+				<div id="names-container" style="margin-top: 12px"></div>
+				<div class="choices" style="margin-top: 16px">
+					<button class="btn-primary" id="start-long">Start Game</button>
+				</div>
+			</div>
 		</div>
 
 		<script>
-			function startGame(mode) {
-				window.location.href = `start.html?mode=${mode}`;
-			}
+			const modeModal = document.getElementById("mode-modal");
+			const playersModal = document.getElementById("players-modal");
+			const playerSelect = document.getElementById("player-count-input");
+			const botSelect = document.getElementById("bot-count-input");
+			const botOptions = document.getElementById("bot-options");
+			const namesContainer = document.getElementById("names-container");
+
+			const buildNameInputs = () => {
+				const total = parseInt(playerSelect.value, 10);
+				const bots = playerSelect.value === "3" ? parseInt(botSelect.value, 10) : 0;
+				const humans = total - bots;
+				namesContainer.innerHTML = "";
+				const slots = [];
+				for (let i = 0; i < humans; i++) {
+					slots.push({
+						type: "human",
+						label: `Player ${i + 1}`,
+						placeholder: `Player ${i + 1}`,
+					});
+				}
+				for (let b = 0; b < bots; b++) {
+					slots.push({
+						type: "bot",
+						label: `Bot ${b + 1}`,
+						name: `Bot ${b + 1}`,
+					});
+				}
+				slots.forEach((slot, idx) => {
+					const wrap = document.createElement("div");
+					wrap.style.marginBottom = "8px";
+					if (slot.type === "human") {
+						const label = document.createElement("label");
+						label.textContent = `${slot.label} name`;
+						label.style.display = "block";
+						const input = document.createElement("input");
+						input.type = "text";
+						input.className = "player-select name-entry";
+						input.style.width = "100%";
+						input.dataset.idx = idx;
+						input.dataset.label = slot.placeholder;
+						input.placeholder = slot.placeholder;
+						wrap.appendChild(label);
+						wrap.appendChild(input);
+					} else {
+						const label = document.createElement("label");
+						label.textContent = `${slot.label} (bot)`;
+						label.style.display = "block";
+						const botTag = document.createElement("div");
+						botTag.className = "player-select";
+						botTag.style.padding = "10px";
+						botTag.textContent = slot.name;
+						botTag.dataset.name = slot.name;
+						botTag.dataset.type = "bot";
+						wrap.appendChild(label);
+						wrap.appendChild(botTag);
+					}
+					namesContainer.appendChild(wrap);
+				});
+			};
+			document.getElementById("play-btn").onclick = () => {
+				modeModal.style.display = "flex";
+			};
+			document.getElementById("fast-game").onclick = () => {
+				window.location.href = "start.html?mode=easy";
+			};
+			document.getElementById("long-game").onclick = () => {
+				modeModal.style.display = "none";
+				playersModal.style.display = "flex";
+			};
+			playerSelect.addEventListener("change", () => {
+				botOptions.style.display = playerSelect.value === "3" ? "block" : "none";
+				buildNameInputs();
+			});
+			botSelect.addEventListener("change", () => {
+				buildNameInputs();
+			});
+			document.getElementById("start-long").onclick = () => {
+				const players = playerSelect.value;
+				const botCount =
+					players === "3" ? botSelect.value : 0;
+				const entries = namesContainer.querySelectorAll(".name-entry, [data-type='bot']");
+				const names = Array.from(entries).map((el) => {
+					if (el.classList.contains("name-entry")) {
+						return el.value || el.dataset.label || "Player";
+					}
+					return el.dataset.name || "Bot";
+				});
+				const namesParam = encodeURIComponent(JSON.stringify(names));
+				window.location.href = `start.html?mode=hard&players=${players}&bots=${botCount}&names=${namesParam}`;
+			};
+			buildNameInputs();
+			[modeModal, playersModal].forEach((modal) => {
+				modal.addEventListener("click", (e) => {
+					if (e.target === modal) modal.style.display = "none";
+				});
+			});
 		</script>
 	</body>
 </html>

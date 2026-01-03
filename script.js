@@ -1,5 +1,22 @@
 // Mode Configuration
 const mode = new URLSearchParams(window.location.search).get("mode") || "easy";
+const urlPlayers = parseInt(
+	new URLSearchParams(window.location.search).get("players") || "0",
+	10
+);
+const urlBots = parseInt(
+	new URLSearchParams(window.location.search).get("bots") || "0",
+	10
+);
+let urlNames = [];
+try {
+	const namesParam = new URLSearchParams(window.location.search).get("names");
+	if (namesParam) {
+		urlNames = JSON.parse(decodeURIComponent(namesParam));
+	}
+} catch (e) {
+	urlNames = [];
+}
 const config = {
 	easy: {
 		cards: Array.from({ length: 10 }, (_, i) => i + 1),
@@ -35,69 +52,193 @@ const config = {
 	hard: {
 		cards: Array.from({ length: 27 }, (_, i) => i + 1),
 		queries: [
-			[1, 3, 12],
-			[1, 7, 13],
-			[1, 15, 19],
-			[1, 16, 17],
-			[2, 3, 25],
-			[2, 8, 22],
-			[2, 12, 13],
-			[2, 17, 20],
-			[3, 6, 9],
-			[3, 19, 24],
-			[4, 8, 18],
-			[4, 10, 26],
-			[4, 12, 19],
-			[4, 22, 25],
-			[5, 7, 23],
-			[5, 14, 17],
-			[5, 27, 18],
-			[5, 21, 22],
-			[6, 27, 25],
-			[6, 18, 24],
-			[6, 19, 26],
-			[7, 11, 15],
-			[7, 16, 24],
-			[8, 14, 27],
-			[8, 21, 26],
-			[9, 27, 23],
-			[9, 16, 18],
-			[9, 20, 26],
-			[10, 13, 15],
-			[10, 17, 24],
-			[10, 20, 25],
-			[11, 13, 21],
-			[11, 14, 20],
-			[11, 16, 23],
-			[12, 14, 22],
-			[15, 21, 23],
+			[3, 6, 9], // l1: CFI
+			[2, 17, 20], // l2: BQT
+			[2, 12, 13], // l3: BLM
+			[2, 8, 22], // l4: BHV
+			[2, 3, 25], // l5: BCY
+			[1, 16, 17], // l6: APQ
+			[1, 15, 19], // l7: AOS
+			[1, 7, 13], // l8: AGM
+			[1, 3, 12], // l9: ACL
+			[15, 21, 23], // l10: OUW
+			[12, 14, 22], // l11: LNV
+			[11, 16, 23], // l12: KPW
+			[11, 14, 20], // l13: KNT
+			[11, 13, 21], // l14: KMU
+			[10, 20, 25], // l15: JTY
+			[10, 17, 24], // l16: JQX
+			[10, 13, 15], // l17: JMO
+			[9, 20, 26], // l18: ITZ
+			[9, 16, 18], // l19: IPR
+			[9, 27, 23], // l20: I@W
+			[8, 21, 26], // l21: HUZ
+			[8, 14, 27], // l22: HN@
+			[7, 16, 24], // l23: GPX
+			[7, 11, 15], // l24: GKO
+			[6, 19, 26], // l25: FSZ
+			[6, 18, 24], // l26: FRX
+			[6, 27, 25], // l27: F@Y
+			[5, 21, 22], // l28: EUV
+			[5, 27, 18], // l29: E@R
+			[5, 14, 17], // l30: ENQ
+			[5, 7, 23], // l31: EGW
+			[4, 22, 25], // l32: DVY
+			[4, 12, 19], // l33: DLS
+			[4, 10, 26], // l34: DJZ
+			[4, 8, 18], // l35: DHR
+			[3, 19, 24], // l36: CSX
 		],
 		cardsPerPlayer: 8,
 		cardsToGuess: 3,
 	},
 };
 
-let hands = {};
-let blackVienna = [];
-let selectedQuery = null;
-let selectedGuess = [];
-let fullQueryDeck = [];
-let visibleQueries = [];
-let usedQueries = new Set();
-let currentTurnIndex = 0;
-let players = [];
-
 // DOM elements
 const getEl = (id) => document.getElementById(id);
 const queryContainer = getEl("query-cards");
 const guessOptions = getEl("guess-options");
 const guessButton = getEl("guess-button");
+const guessModal = getEl("guess-modal");
+const guessModalClose = getEl("close-guess-modal");
+const guessModalSubmit = getEl("submit-guess-modal");
+const chooseQueryButton = getEl("choose-query-button");
+const queryModal = getEl("query-modal");
+const closeQueryModalBtn = getEl("close-query-modal");
+const queryModalTop = getEl("query-modal-top");
+const queryModalUsed = getEl("query-modal-used");
+const handModal = getEl("hand-modal");
+const handModalClose = getEl("close-hand-modal");
+const handModalBody = getEl("hand-modal-body");
+const playersLayout = getEl("players-layout");
+const askModal = getEl("ask-modal");
+const askModalBody = getEl("ask-modal-body");
+const askModalClose = getEl("close-ask-modal");
+const restartButton = getEl("restart-button");
 const statusLine = getEl("current-player-label");
 const yourCardsContainer = getEl("your-cards");
 const logBox = getEl("log-box");
+const askButtons = getEl("ask-buttons");
+const nextTurnBtn = getEl("next-turn");
+const playerCountSelect = getEl("player-count");
+const playerCountWrapper = getEl("player-count-wrapper");
+const tokensLine = getEl("tokens-line");
+const hiddenStackEl = getEl("hidden-stack");
+const showHandBtn = getEl("show-hand-btn");
+const handCount = getEl("hand-count");
+let askHandler = null;
+
+const hardCardKeys = [
+	"a",
+	"b",
+	"c",
+	"d",
+	"e",
+	"f",
+	"g",
+	"h",
+	"i",
+	"j",
+	"k",
+	"l",
+	"m",
+	"n",
+	"o",
+	"p",
+	"q",
+	"r",
+	"s",
+	"t",
+	"u",
+	"v",
+	"w",
+	"x",
+	"y",
+	"z",
+	"@",
+];
+
+const hardPlayerColors = [
+	"#ff7f50",
+	"#00a7a0",
+	"#7b5dfa",
+	"#e63946",
+	"#f4a261",
+	"#4cc9f0",
+];
+
+const hardQueries = config.hard.queries.map((combo, idx) => ({
+	id: idx + 1,
+	combo,
+	image: `query2/l${idx + 1}.png`,
+}));
+
+const layoutPositions = {
+	3: [
+		{ left: "42%", top: "6%" },
+		{ left: "18%", top: "39%" },
+		{ left: "66%", top: "39%" },
+	],
+	4: [
+		{ left: "28%", top: "6%" },
+		{ left: "58%", top: "6%" },
+		{ left: "18%", top: "39%" },
+		{ left: "68%", top: "39%" },
+	],
+	5: [
+		{ left: "42%", top: "0%" },
+		{ left: "20%", top: "22%" },
+		{ left: "64%", top: "22%" },
+		{ left: "30%", top: "44%" },
+		{ left: "54%", top: "44%" },
+	],
+	6: [
+		{ left: "18%", top: "12%" },
+		{ left: "44%", top: "12%" },
+		{ left: "70%", top: "12%" },
+		{ left: "18%", top: "44%" },
+		{ left: "44%", top: "44%" },
+		{ left: "70%", top: "44%" },
+	],
+};
+
+function hardGuessCount() {
+	if (mode !== "hard") return config[mode]?.cardsToGuess || 3;
+	return hardState.numPlayers === 5 ? 2 : 3;
+}
+
+const classicState = {
+	hands: {},
+	hiddenCards: [],
+	selectedQuery: null,
+	selectedGuess: [],
+	fullQueryDeck: [],
+	visibleQueries: [],
+	usedQueries: new Set(),
+	currentTurnIndex: 0,
+	players: [],
+};
+
+const hardState = {
+	players: [],
+	hands: {},
+	hiddenCards: [],
+	queryPiles: [[], [], []],
+	usedCards: [],
+	tokensRemaining: {},
+	currentTurnIndex: 0,
+	selectedQueryCard: null,
+	selectedQuerySource: null,
+	selectedGuess: [],
+	showingHand: false,
+	numPlayers: 3,
+	hiddenCount: 3,
+	botCount: 0,
+	roles: {},
+};
 
 function shuffle(arr) {
-	let a = [...arr];
+	const a = [...arr];
 	for (let i = a.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[a[i], a[j]] = [a[j], a[i]];
@@ -105,16 +246,13 @@ function shuffle(arr) {
 	return a;
 }
 
-function numberToLetter(n) {
-	if (mode === "easy") {
+function numberToLetter(n, currentMode = mode) {
+	if (currentMode === "easy") {
 		if (n === 1) return "A";
 		return String(n);
-	} else if (mode === "medium") {
+	} else if (currentMode === "medium") {
 		if (n >= 1 && n <= 9) return `${n === 1 ? "A" : n}♠️`;
 		if (n >= 10 && n <= 18) return `${n === 10 ? "A" : n - 9}♥️`;
-	} else if (mode === "hard") {
-		if (n === 27) return "@";
-		return String.fromCharCode(64 + n);
 	}
 	return n.toString();
 }
@@ -124,173 +262,743 @@ function setStatus(msg) {
 }
 
 function scrollLogToBottom() {
-	logBox.scrollTop = logBox.scrollHeight;
+	if (logBox) logBox.scrollTop = logBox.scrollHeight;
 }
 
-function drawQueryCards() {
-	queryContainer.innerHTML = "";
-	visibleQueries.forEach((query, index) => {
-		const div = document.createElement("div");
-		div.className = "query-card";
-		div.textContent = query.map(numberToLetter).join(" ");
-		div.onclick = () => {
-			selectedQuery = visibleQueries[index];
-			document
-				.querySelectorAll(".query-card")
-				.forEach((card) => card.classList.remove("selected-query"));
-			div.classList.add("selected-query");
-			setStatus(`Choose a player to ask`);
-			showAskButtons(); // ← Add this line
+function openAskModal(options = []) {
+	if (!askModal || !askModalBody) return;
+	askModalBody.innerHTML = "";
+	options.forEach((opt) => {
+		const btn = document.createElement("button");
+		btn.className = "choice-btn";
+		btn.textContent = opt.label;
+		btn.onclick = () => {
+			if (askHandler) askHandler(opt.value);
+			closeAskModal();
 		};
-		queryContainer.appendChild(div);
+		askModalBody.appendChild(btn);
+	});
+	askModal.style.display = "flex";
+}
+
+function closeAskModal() {
+	if (askModal) askModal.style.display = "none";
+	askHandler = null;
+}
+
+function renderPlayersLayout() {
+	if (!playersLayout) return;
+	playersLayout.innerHTML = "";
+	const positions = layoutPositions[hardState.players.length] || layoutPositions[3];
+	hardState.players.forEach((p, idx) => {
+		const card = document.createElement("div");
+		card.className = "player-card";
+		if (idx === hardState.currentTurnIndex) card.classList.add("active");
+		const role = p;
+		card.style.left = positions[idx]?.left || "10%";
+		card.style.top = positions[idx]?.top || "10%";
+		const count = hardState.hands[p]?.length || 0;
+		const showRole = hardState.players.length === 3;
+		const roleLabel =
+			showRole && hardState.roles[p] === "bot"
+				? "Bot"
+				: showRole
+					? "Human"
+					: "";
+		const colorDot = hardPlayerColors[idx % hardPlayerColors.length];
+		card.innerHTML = `${roleLabel ? `<span class=\"role\">${roleLabel}</span>` : ""}<span class=\"name\"><span class=\"color-dot\" style=\"width:12px;height:12px;background:${colorDot};margin-right:6px;display:inline-block;border-radius:50%;\"></span>${role}</span><div class=\"info\">${count} card${count === 1 ? "" : "s"}</div>`;
+		playersLayout.appendChild(card);
 	});
 }
 
-function handleQueryUsage(index) {
-	const usedCard = visibleQueries[index];
-	const usedKey = usedCard.toString();
-	if (!usedQueries.has(usedKey)) {
-		usedQueries.add(usedKey);
-		if (fullQueryDeck.length > 0) {
-			const newCard = fullQueryDeck.pop();
-			visibleQueries.push(newCard);
+function clearLog() {
+	if (logBox) {
+		logBox.innerHTML = "<strong>Query Log:</strong><br>";
+	}
+}
+
+function resetAskButtons() {
+	if (!askButtons) return;
+	askButtons.innerHTML = "";
+	askButtons.style.display = "none";
+}
+
+function updateNextButton(show) {
+	nextTurnBtn.style.display = show ? "inline-block" : "none";
+}
+
+function buildTokenDots(tokens = []) {
+	const wrap = document.createElement("div");
+	wrap.className = "token-dots";
+	tokens.forEach((t) => {
+		const dot = document.createElement("div");
+		dot.className = "token-dot";
+		dot.style.backgroundColor = t.color;
+		dot.title = `${t.fromShort || ""}${t.toShort ? `→${t.toShort}` : ""}${
+			t.count ? `: ${t.count}` : ""
+		}`;
+		wrap.appendChild(dot);
+	});
+	return wrap;
+}
+
+function openQueryModal() {
+	if (mode !== "hard") return;
+	if (!queryModal) return;
+	renderQueryModal();
+	queryModal.style.display = "flex";
+}
+
+function closeQueryModal() {
+	if (!queryModal) return;
+	queryModal.style.display = "none";
+}
+
+function renderQueryModal() {
+	if (!queryModalTop || !queryModalUsed) return;
+	queryModalTop.innerHTML = "";
+	hardState.queryPiles.forEach((pile, idx) => {
+		const card = pile[0];
+		const slot = document.createElement("div");
+		slot.className = "card-frame query-card-option";
+		if (card) {
+			slot.style.backgroundImage = `url(${card.image})`;
+			slot.onclick = () =>
+				selectHardQueryCard(card, { type: "pile", pileIndex: idx });
+		} else {
+			slot.classList.add("pile-card", "empty");
+			slot.style.backgroundImage = "none";
+			slot.textContent = "Empty";
 		}
-	}
-}
-
-function drawGuessOptions() {
-	guessOptions.innerHTML = "";
-	config[mode].cards.forEach((c) => {
-		const div = document.createElement("div");
-		div.className = "card guess-option";
-		div.textContent = numberToLetter(c);
-		div.onclick = () => selectGuess(c, div);
-		guessOptions.appendChild(div);
+		queryModalTop.appendChild(slot);
 	});
-	document
-		.querySelectorAll(".guess-option")
-		.forEach((el) => el.classList.remove("selected"));
-}
 
-function selectGuess(card, element) {
-	const index = selectedGuess.indexOf(card);
-	if (index !== -1) {
-		selectedGuess.splice(index, 1);
-		element.classList.remove("selected");
-	} else if (selectedGuess.length < config[mode].cardsToGuess) {
-		selectedGuess.push(card);
-		element.classList.add("selected");
-	}
-}
-
-guessButton.onclick = () => {
-	if (selectedGuess.length !== config[mode].cardsToGuess) {
-		alert(`Select exactly ${config[mode].cardsToGuess} card(s).`);
-		return;
-	}
-	const guessed = selectedGuess.sort().join(",");
-	const actual = blackVienna.sort().join(",");
-	if (guessed === actual) {
-		alert("🎉 Correct! You win!");
+	queryModalUsed.innerHTML = "";
+	if (hardState.usedCards.length === 0) {
+		const note = document.createElement("div");
+		note.className = "muted";
+		note.textContent = "No used cards yet.";
+		queryModalUsed.appendChild(note);
 	} else {
-		alert(
-			`❌ Wrong. The hidden cards were: ${blackVienna
-				.map(numberToLetter)
-				.join(", ")}`
-		);
+		hardState.usedCards.forEach((entry) => {
+			const slot = document.createElement("div");
+			slot.className = "card-frame query-card-option";
+			slot.style.backgroundImage = `url(${entry.card.image})`;
+			const dots = buildTokenDots(entry.tokens);
+			slot.appendChild(dots);
+			slot.onclick = () =>
+				selectHardQueryCard(entry.card, { type: "used", cardId: entry.card.id });
+			queryModalUsed.appendChild(slot);
+		});
 	}
-	setTimeout(initGame, 1500);
-};
+}
 
-function initGame() {
+function openGuessModal() {
+	if (!guessModal) return;
+	guessModal.style.display = "flex";
+	if (mode === "hard") {
+		renderHardGuessOptions();
+	} else {
+		drawClassicGuessOptions();
+	}
+}
+
+function closeGuessModal() {
+	if (!guessModal) return;
+	guessModal.style.display = "none";
+}
+
+function openHandModal() {
+	if (!handModal || !handModalBody) return;
+	handModalBody.innerHTML = "";
+	const hand = hardState.hands[hardState.players[hardState.currentTurnIndex]] || [];
+	hand.forEach((id) => {
+		const div = document.createElement("div");
+		div.className = "card card-img guess-option";
+		div.style.backgroundImage = `url(${hardIdToImage(id)})`;
+		handModalBody.appendChild(div);
+	});
+	handModal.style.display = "flex";
+}
+
+function closeHandModal() {
+	if (handModal) handModal.style.display = "none";
+}
+
+// -------- Classic modes (easy / medium) --------
+function initClassicGame() {
+	if (playerCountWrapper) playerCountWrapper.style.display = "none";
+	if (hiddenStackEl) {
+		hiddenStackEl.style.display = "none";
+		hiddenStackEl.innerHTML = "";
+	}
+	if (tokensLine) tokensLine.innerHTML = "";
+	if (showHandBtn) showHandBtn.style.display = "none";
+	if (handCount) handCount.textContent = "";
+	queryContainer.classList.remove("query-piles");
+	if (chooseQueryButton) chooseQueryButton.style.display = "none";
+	if (logBox && logBox.parentElement)
+		logBox.parentElement.style.display = "block";
+
 	const numPlayers = 3;
 	const cards = config[mode].cards;
 	const shuffled = shuffle(cards);
 	const cardsToGuess = config[mode].cardsToGuess;
 	const cardsPerPlayer = config[mode].cardsPerPlayer;
 
-	blackVienna = shuffled.slice(0, cardsToGuess);
-	hands = {};
-	players = [];
+	classicState.hiddenCards = shuffled.slice(0, cardsToGuess);
+	classicState.hands = {};
+	classicState.players = [];
 
 	for (let i = 0; i < numPlayers; i++) {
 		const name = `Player ${i + 1}`;
-		hands[name] = shuffled.slice(
+		classicState.hands[name] = shuffled.slice(
 			cardsToGuess + i * cardsPerPlayer,
 			cardsToGuess + (i + 1) * cardsPerPlayer
 		);
-		players.push(name);
+		classicState.players.push(name);
 	}
-	currentTurnIndex = 0;
-	selectedGuess = [];
-	selectedQuery = null;
-	fullQueryDeck = shuffle(config[mode].queries);
-	visibleQueries = fullQueryDeck.splice(0, 3);
-	usedQueries = new Set();
 
-	drawQueryCards();
-	drawGuessOptions();
-	setStatus(`${players[currentTurnIndex]}'s turn`);
-	renderCurrentPlayerHand();
-	logBox.innerHTML = "<strong>Query Log:</strong><br>";
+	classicState.currentTurnIndex = 0;
+	classicState.selectedGuess = [];
+	classicState.selectedQuery = null;
+	classicState.fullQueryDeck = shuffle(config[mode].queries);
+	classicState.visibleQueries = classicState.fullQueryDeck.splice(0, 3);
+	classicState.usedQueries = new Set();
+
+	clearLog();
+	drawClassicQueryCards();
+	drawClassicGuessOptions();
+	setStatus(`${classicState.players[0]}'s turn`);
+	renderClassicHand();
+	resetAskButtons();
+	updateNextButton(false);
 }
 
-function renderCurrentPlayerHand() {
-	const hand = hands[players[currentTurnIndex]];
-	yourCardsContainer.innerHTML = hand
-		.map((c) => `<div class="card">${numberToLetter(c)}</div>`)
+function drawClassicQueryCards() {
+	queryContainer.innerHTML = "";
+	classicState.visibleQueries.forEach((query, index) => {
+		const div = document.createElement("div");
+		div.className = "query-card";
+		div.textContent = query.map((q) => numberToLetter(q, mode)).join(" ");
+		div.onclick = () => {
+			classicState.selectedQuery = classicState.visibleQueries[index];
+			document
+				.querySelectorAll(".query-card")
+				.forEach((card) => card.classList.remove("selected-query"));
+			div.classList.add("selected-query");
+			setStatus(`Choose a player to ask`);
+			showClassicAskButtons();
+		};
+		queryContainer.appendChild(div);
+	});
+}
+
+function drawClassicGuessOptions() {
+	guessOptions.innerHTML = "";
+	config[mode].cards.forEach((c) => {
+		const div = document.createElement("div");
+		div.className = "card guess-option";
+		div.textContent = numberToLetter(c, mode);
+		if (classicState.selectedGuess.includes(c)) {
+			div.classList.add("selected");
+		}
+		div.onclick = () => selectClassicGuess(c, div);
+		guessOptions.appendChild(div);
+	});
+}
+
+function selectClassicGuess(card, element) {
+	const index = classicState.selectedGuess.indexOf(card);
+	if (index !== -1) {
+		classicState.selectedGuess.splice(index, 1);
+		element.classList.remove("selected");
+	} else if (classicState.selectedGuess.length < config[mode].cardsToGuess) {
+		classicState.selectedGuess.push(card);
+		element.classList.add("selected");
+	}
+}
+
+function handleClassicGuess() {
+	if (classicState.selectedGuess.length !== config[mode].cardsToGuess) {
+		alert(`Select exactly ${config[mode].cardsToGuess} card(s).`);
+		return false;
+	}
+	const guessed = [...classicState.selectedGuess].sort().join(",");
+	const actual = [...classicState.hiddenCards].sort().join(",");
+	if (guessed === actual) {
+		alert("🎉 Correct! You win!");
+	} else {
+		alert(
+			`❌ Wrong. The hidden cards were: ${classicState.hiddenCards
+				.map((n) => numberToLetter(n, mode))
+				.join(", ")}`
+		);
+	}
+	setTimeout(initClassicGame, 1500);
+	return true;
+}
+
+function renderClassicHand() {
+	const hand = classicState.hands[classicState.players[classicState.currentTurnIndex]];
+	handCount.textContent = hand ? `${hand.length} cards` : "";
+	yourCardsContainer.innerHTML = (hand || [])
+		.map((c) => `<div class="card">${numberToLetter(c, mode)}</div>`)
 		.join("");
 }
 
-function showAskButtons() {
-	const askBox = document.getElementById("ask-buttons");
-	askBox.innerHTML = "";
-	const current = players[currentTurnIndex];
-	console.log("Current player is", current);
-	players
+function showClassicAskButtons() {
+	const current = classicState.players[classicState.currentTurnIndex];
+	const options = classicState.players
 		.filter((p) => p !== current)
-		.forEach((p) => {
-			const btn = document.createElement("button");
-			btn.textContent = `Ask ${p}`;
-			btn.onclick = () => handleQuery(current, p);
-			askBox.appendChild(btn);
-		});
-	askBox.style.display = "block";
+		.map((p) => ({ label: `Ask ${p}`, value: p }));
+	askHandler = (target) => handleClassicQuery(current, target);
+	openAskModal(options);
 }
 
-function handleQuery(from, to) {
-	if (!selectedQuery) return;
-	const matchCount = selectedQuery.filter((c) =>
-		hands[to].includes(c)
+function handleClassicQuery(from, to) {
+	if (!classicState.selectedQuery) return;
+	const matchCount = classicState.selectedQuery.filter((c) =>
+		classicState.hands[to].includes(c)
 	).length;
-	const queryText = selectedQuery.map(numberToLetter).join(" ");
-	logBox.innerHTML += `<br>🟢 ${from} → ${to} [${queryText}] → ${matchCount} match(es)`;
+	const queryText = classicState.selectedQuery
+		.map((n) => numberToLetter(n, mode))
+		.join(" ");
+	if (logBox)
+		logBox.innerHTML += `<br>🟢 ${from} → ${to} [${queryText}] → ${matchCount} match(es)`;
 
-	// Replace query if it's newly used
-	const index = visibleQueries.findIndex(
-		(q) => q.toString() === selectedQuery.toString()
+	const index = classicState.visibleQueries.findIndex(
+		(q) => q.toString() === classicState.selectedQuery.toString()
 	);
 	if (index !== -1) {
-		handleQueryUsage(index);
-		drawQueryCards();
+		const usedKey = classicState.visibleQueries[index].toString();
+		if (!classicState.usedQueries.has(usedKey)) {
+			classicState.usedQueries.add(usedKey);
+			if (classicState.fullQueryDeck.length > 0) {
+				const newCard = classicState.fullQueryDeck.pop();
+				classicState.visibleQueries.push(newCard);
+			}
+		}
+		classicState.visibleQueries.splice(index, 1);
 	}
-
+	drawClassicQueryCards();
 	scrollLogToBottom();
-	document.getElementById("ask-buttons").style.display = "none";
-	selectedQuery = null;
-
-	// Move to next player
-	document.getElementById("next-turn").style.display = "inline-block";
-	setStatus(`${players[currentTurnIndex]}'s turn`);
+	resetAskButtons();
+	classicState.selectedQuery = null;
+	updateNextButton(true);
+	setStatus(`${classicState.players[classicState.currentTurnIndex]}'s turn`);
 }
 
-document.getElementById("next-turn").onclick = () => {
-	currentTurnIndex = (currentTurnIndex + 1) % players.length;
-	setStatus(`${players[currentTurnIndex]}'s turn`);
-	renderCurrentPlayerHand();
-	document.getElementById("next-turn").style.display = "none";
-};
+function nextClassicTurn() {
+	classicState.currentTurnIndex =
+		(classicState.currentTurnIndex + 1) % classicState.players.length;
+	setStatus(`${classicState.players[classicState.currentTurnIndex]}'s turn`);
+	renderClassicHand();
+	updateNextButton(false);
+}
+
+// -------- Hard mode --------
+function hardIdToKey(id) {
+	if (id === 27) return "@";
+	return String.fromCharCode(96 + id);
+}
+
+function hardIdToImage(id) {
+	return `playCards/${hardIdToKey(id)}.png`;
+}
+
+function formatQueryText(combo) {
+	return combo.map((n) => hardIdToKey(n)).join(" ");
+}
+
+function renderHiddenStack() {
+	if (!hiddenStackEl) return;
+	hiddenStackEl.innerHTML = "";
+	const count =
+		mode === "hard"
+			? hardState.numPlayers === 5
+				? 2
+				: 3
+			: config[mode]?.cardsToGuess || 3;
+	for (let i = 0; i < count; i++) {
+		const card = document.createElement("div");
+		card.className = "hidden-card";
+		hiddenStackEl.appendChild(card);
+	}
+	hiddenStackEl.style.display = "block";
+}
+
+function renderTokensLine() {
+	if (!tokensLine) return;
+	tokensLine.innerHTML = "";
+	hardState.players.forEach((p, idx) => {
+		const chip = document.createElement("div");
+		chip.className = "token-chip";
+		const dot = document.createElement("span");
+		dot.className = "color-dot";
+		dot.style.backgroundColor = hardPlayerColors[idx % hardPlayerColors.length];
+		const text = document.createElement("span");
+		text.textContent = `${p}: ${hardState.tokensRemaining[p]} tokens left`;
+		chip.appendChild(dot);
+		chip.appendChild(text);
+		tokensLine.appendChild(chip);
+	});
+}
+
+function renderHardQueryPiles() {
+	queryContainer.innerHTML = "";
+	queryContainer.classList.add("query-piles");
+	queryContainer.style.display = "grid";
+	queryContainer.style.gridTemplateColumns = "repeat(3, minmax(120px, 1fr))";
+	queryContainer.style.justifyItems = "center";
+	queryContainer.style.gap = "16px";
+	hardState.queryPiles.forEach((pile, idx) => {
+		const wrapper = document.createElement("div");
+		wrapper.className = "query-pile";
+
+		const cardFace = document.createElement("div");
+		cardFace.className = "pile-card";
+		const topCard = pile[0];
+		if (topCard) {
+			cardFace.style.backgroundImage = `url(${topCard.image})`;
+			cardFace.onclick = () => openQueryModal();
+			cardFace.title = `Deck ${idx + 1}`;
+		} else {
+			cardFace.classList.add("empty");
+			cardFace.textContent = "No cards";
+		}
+
+		const meta = document.createElement("div");
+		meta.className = "pile-meta";
+		meta.innerHTML = `<span>Deck ${idx + 1}</span><span>${pile.length} left</span>`;
+
+		wrapper.append(cardFace, meta);
+		queryContainer.appendChild(wrapper);
+	});
+}
+
+function selectHardQueryCard(card, source) {
+	hardState.selectedQueryCard = card;
+	hardState.selectedQuerySource = source;
+	closeQueryModal();
+	setStatus(
+		`${hardState.players[hardState.currentTurnIndex]} chose a query card. Pick a player to ask.`
+	);
+	showHardAskButtons();
+}
+
+function showHardAskButtons() {
+	if (!hardState.selectedQueryCard) return;
+	const current = hardState.players[hardState.currentTurnIndex];
+	const options = hardState.players
+		.filter((p) => p !== current)
+		.map((p) => ({ label: `Ask ${p}`, value: p }));
+	askHandler = (target) => handleHardQuery(target);
+	openAskModal(options);
+}
+
+function attachTokenToUsedCard(card, token) {
+	let entry = hardState.usedCards.find((u) => u.card.id === card.id);
+	if (!entry) {
+		entry = { card, tokens: [] };
+		hardState.usedCards.push(entry);
+	}
+	entry.tokens.push(token);
+}
+
+function handleHardQuery(target) {
+	if (!hardState.selectedQueryCard || !hardState.selectedQuerySource) return;
+	const source = hardState.selectedQuerySource;
+	const queryCard = hardState.selectedQueryCard;
+	const from = hardState.players[hardState.currentTurnIndex];
+	const matches = queryCard.combo.filter((c) => hardState.hands[target].includes(c))
+		.length;
+
+	const color = hardPlayerColors[
+		hardState.players.indexOf(target) % hardPlayerColors.length
+	];
+	const token = {
+		color,
+		fromShort: target.replace("Player ", "P"),
+		toShort: from.replace("Player ", "P"),
+		count: matches,
+	};
+
+	if (source.type === "pile") {
+		hardState.queryPiles[source.pileIndex].shift();
+	}
+	for (let i = 0; i < Math.max(1, matches); i++) {
+		attachTokenToUsedCard(queryCard, token);
+	}
+	if (matches > 0) {
+		const remaining = hardState.tokensRemaining[from];
+		hardState.tokensRemaining[from] = Math.max(0, remaining - matches);
+	}
+
+	renderTokensLine();
+	renderHardQueryPiles();
+	resetAskButtons();
+	updateNextButton(true);
+	setStatus(`${from} asked ${target}. Click Next Turn.`);
+	hardState.selectedQueryCard = null;
+	hardState.selectedQuerySource = null;
+	renderPlayersLayout();
+}
+
+function renderHardHand() {
+	const hand = hardState.hands[hardState.players[hardState.currentTurnIndex]] || [];
+	if (!hardState.showingHand) {
+		handCount.textContent = "";
+		yourCardsContainer.innerHTML = "";
+		return;
+	}
+	handCount.textContent = `${hand.length} cards`;
+	yourCardsContainer.innerHTML = hand
+		.map(
+			(id) =>
+				`<div class="card card-img" style="background-image:url('${hardIdToImage(
+					id
+				)}')" aria-label="${hardIdToKey(id)}"></div>`
+		)
+		.join("");
+}
+
+function updateShowHandButton() {
+	if (!showHandBtn) return;
+	showHandBtn.textContent = hardState.showingHand
+		? "Hide My Cards"
+		: "Show My Cards";
+}
+
+function toggleHardHand() {
+	hardState.showingHand = !hardState.showingHand;
+	updateShowHandButton();
+	renderHardHand();
+}
+
+function renderHardGuessOptions() {
+	guessOptions.innerHTML = "";
+	hardCardKeys.forEach((key, idx) => {
+		const id = idx + 1;
+		const div = document.createElement("div");
+		div.className = "card card-img guess-option";
+		div.style.backgroundImage = `url(playCards/${key}.png)`;
+		if (hardState.selectedGuess.includes(id)) {
+			div.classList.add("selected");
+		}
+		div.onclick = () => selectHardGuess(id, div);
+		guessOptions.appendChild(div);
+	});
+}
+
+function selectHardGuess(id, element) {
+	const index = hardState.selectedGuess.indexOf(id);
+	if (index !== -1) {
+		hardState.selectedGuess.splice(index, 1);
+		element.classList.remove("selected");
+	} else if (hardState.selectedGuess.length < hardGuessCount()) {
+		hardState.selectedGuess.push(id);
+		element.classList.add("selected");
+	}
+}
+
+function handleHardGuess() {
+	const guessTarget = hardGuessCount();
+	if (hardState.selectedGuess.length !== guessTarget) {
+		alert(`Select exactly ${guessTarget} card(s).`);
+		return false;
+	}
+	const guessed = [...hardState.selectedGuess].sort();
+	const actual = [...hardState.hiddenCards].sort();
+	const correct = guessed.every((val, idx) => val === actual[idx]);
+	if (correct) {
+		alert("🎉 Correct! You solved the case!");
+	} else {
+		alert(
+			`❌ Wrong. Hidden cards were ${hardState.hiddenCards
+				.map((id) => hardIdToKey(id))
+				.join(", ")}. Game over.`
+		);
+	}
+	setTimeout(initHardGame, 1800);
+	return true;
+}
+
+function maybeRunBotTurn() {
+	if (mode !== "hard") return;
+	if (hardState.numPlayers !== 3 || hardState.botCount === 0) return;
+	const current = hardState.players[hardState.currentTurnIndex];
+	if (hardState.roles[current] !== "bot") return;
+
+	// Pick first available pile top
+	const pileIndex = hardState.queryPiles.findIndex((pile) => pile[0]);
+	if (pileIndex === -1) return;
+	const queryCard = hardState.queryPiles[pileIndex][0];
+	hardState.selectedQueryCard = queryCard;
+	hardState.selectedQuerySource = { type: "pile", pileIndex };
+
+	// Choose a random target that is not the current bot
+	const targets = hardState.players.filter((p) => p !== current);
+	if (targets.length === 0) return;
+	const target = targets[Math.floor(Math.random() * targets.length)];
+
+	handleHardQuery(target);
+
+	// Auto-advance
+	setTimeout(() => {
+		nextHardTurn();
+	}, 400);
+}
+
+function nextHardTurn() {
+	hardState.currentTurnIndex =
+		(hardState.currentTurnIndex + 1) % hardState.players.length;
+	hardState.showingHand = false;
+	hardState.selectedQueryCard = null;
+	hardState.selectedQuerySource = null;
+	updateShowHandButton();
+	renderHardHand();
+	renderPlayersLayout();
+	resetAskButtons();
+	updateNextButton(false);
+	setStatus(`${hardState.players[hardState.currentTurnIndex]}'s turn`);
+	maybeRunBotTurn();
+}
+
+function initHardGame() {
+	queryContainer.classList.add("query-piles");
+	if (playerCountWrapper) playerCountWrapper.style.display = "inline-flex";
+	if (hiddenStackEl) hiddenStackEl.style.display = "block";
+	if (tokensLine) tokensLine.innerHTML = "";
+	if (showHandBtn) showHandBtn.style.display = "inline-block";
+	if (chooseQueryButton) chooseQueryButton.style.display = "inline-block";
+	if (logBox && logBox.parentElement)
+		logBox.parentElement.style.display = "none";
+	if (showHandBtn) showHandBtn.textContent = "Show My Cards";
+
+	const desiredPlayers = [3, 4, 5, 6].includes(urlPlayers)
+		? urlPlayers
+		: parseInt(playerCountSelect?.value || "3", 10);
+	hardState.numPlayers = [3, 4, 5, 6].includes(desiredPlayers) ? desiredPlayers : 3;
+	if (playerCountSelect) playerCountSelect.value = String(hardState.numPlayers);
+	const hiddenMap = { 3: 3, 4: 3, 5: 2, 6: 3 };
+	const perPlayerMap = { 3: 8, 4: 6, 5: 5, 6: 4 };
+	hardState.hiddenCount = hiddenMap[hardState.numPlayers] || 3;
+	hardState.botCount =
+		hardState.numPlayers === 3 ? Math.min(2, Math.max(0, urlBots || 0)) : 0;
+
+	const deckIds = shuffle(Array.from({ length: 27 }, (_, i) => i + 1));
+	const hiddenCount = hardState.hiddenCount || 2;
+	hardState.hiddenCards = deckIds.slice(0, hiddenCount);
+	const remaining = deckIds.slice(hiddenCount);
+
+	const humanCount = hardState.numPlayers - hardState.botCount;
+	hardState.players = Array.from({ length: hardState.numPlayers }, (_, i) => {
+		const incoming = (urlNames[i] || "").trim();
+		if (incoming) return incoming;
+		if (i < humanCount) return `Player ${i + 1}`;
+		const botIndex = i - humanCount + 1;
+		return `Bot ${botIndex}`;
+	});
+	hardState.roles = {};
+	hardState.players.forEach((p, idx) => {
+		if (idx === 0) {
+			hardState.roles[p] = "human";
+		} else if (hardState.numPlayers === 3 && hardState.botCount > 0) {
+			if (hardState.botCount === 2) {
+				hardState.roles[p] = "bot";
+			} else if (hardState.botCount === 1 && idx === hardState.players.length - 1) {
+				hardState.roles[p] = "bot";
+			} else {
+				hardState.roles[p] = "human";
+			}
+		} else {
+			hardState.roles[p] = "human";
+		}
+	});
+	hardState.hands = {};
+	hardState.players.forEach((p) => (hardState.hands[p] = []));
+	const perPlayer = perPlayerMap[hardState.numPlayers] || Math.max(
+		1,
+		Math.min(5, Math.floor(remaining.length / hardState.numPlayers))
+	);
+	const dealable = remaining.slice(0, perPlayer * hardState.numPlayers);
+	dealable.forEach((card, idx) => {
+		const targetPlayer = hardState.players[idx % hardState.numPlayers];
+		hardState.hands[targetPlayer].push(card);
+	});
+
+	hardState.tokensRemaining = {};
+	hardState.players.forEach((p) => (hardState.tokensRemaining[p] = 15));
+	hardState.usedCards = [];
+	hardState.currentTurnIndex = 0;
+	hardState.selectedQueryCard = null;
+	hardState.selectedQuerySource = null;
+	hardState.selectedGuess = [];
+	hardState.showingHand = false;
+
+	const qDeck = shuffle(hardQueries.slice());
+	hardState.queryPiles = [qDeck.slice(0, 12), qDeck.slice(12, 24), qDeck.slice(24)];
+
+	clearLog();
+	renderHiddenStack();
+	renderTokensLine();
+	renderHardQueryPiles();
+	renderHardHand();
+	renderHardGuessOptions();
+	updateShowHandButton();
+	renderPlayersLayout();
+	resetAskButtons();
+	updateNextButton(false);
+	setStatus(`${hardState.players[0]}'s turn - choose a query card.`);
+	maybeRunBotTurn();
+}
+
+// -------- Mode setup --------
+function setupClassicMode() {
+	guessButton.onclick = openGuessModal;
+	nextTurnBtn.onclick = nextClassicTurn;
+	initClassicGame();
+}
+
+function setupHardMode() {
+	guessButton.onclick = openGuessModal;
+	nextTurnBtn.onclick = nextHardTurn;
+	if (playerCountSelect) {
+		playerCountSelect.onchange = initHardGame;
+	}
+	if (showHandBtn) {
+		showHandBtn.onclick = toggleHardHand;
+	}
+	initHardGame();
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-	initGame();
+	if (guessModalClose) guessModalClose.onclick = closeGuessModal;
+	if (guessModalSubmit) {
+		guessModalSubmit.onclick = () => {
+			const ok = mode === "hard" ? handleHardGuess() : handleClassicGuess();
+			if (ok) closeGuessModal();
+		};
+	}
+	if (handModalClose) handModalClose.onclick = closeHandModal;
+	if (askModalClose) askModalClose.onclick = closeAskModal;
+	if (closeQueryModalBtn) closeQueryModalBtn.onclick = closeQueryModal;
+	if (chooseQueryButton) chooseQueryButton.onclick = openQueryModal;
+	if (showHandBtn) showHandBtn.onclick = openHandModal;
+	if (restartButton)
+		restartButton.onclick = () => {
+			if (mode === "hard") initHardGame();
+			else initClassicGame();
+		};
+	if (askModal) {
+		askModal.addEventListener("click", (e) => {
+			if (e.target === askModal) closeAskModal();
+		});
+	}
+	if (mode === "hard") {
+		setupHardMode();
+	} else {
+		setupClassicMode();
+	}
 });

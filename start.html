@@ -6,48 +6,96 @@
 		<link rel="stylesheet" href="style.css" />
 	</head>
 	<body>
-		<div class="game-container">
-			<div
-				class="player-zone"
-				id="player-info"
-				style="justify-content: center"
-			>
-				<h2 id="current-player-label"></h2>
-				<div class="player-hand" id="player-hand">
-					<div class="card-row" id="player-cards"></div>
+		<div class="table-shell">
+			<div class="table-bg">
+				<div class="players-layout" id="players-layout"></div>
+
+				<div class="hidden-stack" id="hidden-stack" aria-label="Hidden cards"></div>
+
+				<div class="deck-row">
+					<div class="query-section query-piles" id="query-cards"></div>
+					<div class="used-query-stub"></div>
 				</div>
-			</div>
 
-			<div class="info-board">
-				<div class="query-section" id="query-cards"></div>
-				<div
-					id="ask-buttons"
-					class="ask-buttons"
-					style="display: none"
-				></div>
-			</div>
-
-			<div class="info-board two-column">
-				<div class="log" id="log-box">
-					<strong>Query Log:</strong><br />
-				</div>
-			</div>
-
-			<div class="player-zone" style="justify-content: center">
-				<div class="player-hand" id="your-hand">
-					Your Hand:
+				<div class="hand-panel" id="your-hand">
+					<div class="hand-header">
+						<span>Your Hand</span>
+						<span class="hand-count" id="hand-count"></span>
+					</div>
 					<div class="card-row" id="your-cards"></div>
 				</div>
 			</div>
 
-			<button id="next-turn" style="display: none">
-				Start Next Player's Turn
-			</button>
+			<div class="control-bar" id="control-bar">
+				<div class="active-display">
+					<span class="label">Active</span>
+					<span class="active-name" id="current-player-label"></span>
+				</div>
+				<div class="control-buttons">
+					<button id="choose-query-button">Choose Query Card</button>
+					<button id="show-hand-btn">Show My Cards</button>
+					<button id="guess-button">Guess</button>
+					<button id="restart-button">Restart</button>
+					<button id="next-turn" style="display: none">Next Turn</button>
+				</div>
+			</div>
+		</div>
 
-			<div class="info-board">
-				<h3>Guess the Hidden Card</h3>
-				<div class="card-row" id="guess-options"></div>
-				<button id="guess-button">Guess</button>
+		<div class="modal-overlay" id="guess-modal" style="display: none">
+			<div class="modal">
+				<div class="modal-header">
+					<h3>Select Hidden Cards</h3>
+					<button id="close-guess-modal" class="icon-btn">×</button>
+				</div>
+				<div class="modal-body">
+					<div class="guess-grid" id="guess-options"></div>
+					<div class="modal-actions">
+						<button id="submit-guess-modal">Confirm Guess</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal-overlay" id="hand-modal" style="display: none">
+			<div class="modal">
+				<div class="modal-header">
+					<h3>Your Cards</h3>
+					<button id="close-hand-modal" class="icon-btn">×</button>
+				</div>
+				<div class="modal-body">
+					<div class="guess-grid" id="hand-modal-body"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal-overlay" id="ask-modal" style="display: none">
+			<div class="modal">
+				<div class="modal-header">
+					<h3>Ask which player?</h3>
+					<button id="close-ask-modal" class="icon-btn">×</button>
+				</div>
+				<div class="modal-body">
+					<div class="choices" id="ask-modal-body"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal-overlay" id="query-modal" style="display: none">
+			<div class="modal">
+				<div class="modal-header">
+					<h3>Select a Query Card</h3>
+					<button id="close-query-modal" class="icon-btn">×</button>
+				</div>
+				<div class="modal-body">
+					<div class="modal-section">
+						<div class="section-title">Top of Piles</div>
+						<div class="query-card-grid" id="query-modal-top"></div>
+					</div>
+					<div class="modal-section">
+						<div class="section-title">Used Cards</div>
+						<div class="query-card-grid" id="query-modal-used"></div>
+					</div>
+				</div>
 			</div>
 		</div>
 		<script src="script.js"></script>
