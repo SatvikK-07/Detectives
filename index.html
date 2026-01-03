@@ -10,15 +10,11 @@
 				margin: 0;
 				min-height: 100vh;
 				font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-				background: radial-gradient(circle at 10% 20%, #ffe6b0 0, transparent 35%),
-					radial-gradient(circle at 80% 10%, #c9f5ff 0, transparent 30%),
-					radial-gradient(circle at 50% 80%, #f2ffe5 0, transparent 35%),
-					#fefbe3;
+				background: url("bg.png") center/cover no-repeat;
 				color: #1f2a33;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				overflow: hidden;
 			}
 
 			.hero {
@@ -26,11 +22,10 @@
 				text-align: center;
 				padding: 60px 24px;
 				border-radius: 24px;
-				background: rgba(255, 255, 255, 0.8);
-				box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+				background: transparent;
+				box-shadow: none;
 				max-width: 720px;
 				width: 90%;
-				backdrop-filter: blur(6px);
 			}
 
 			.hero h1 {
@@ -42,8 +37,9 @@
 
 			.hero p {
 				margin: 0 0 28px;
-				font-size: 1.1rem;
-				color: #3c4c53;
+				font-size: 1.15rem;
+				color: #1f2a33;
+				font-weight: 600;
 			}
 
 			.btn-primary {
@@ -62,55 +58,6 @@
 			.btn-primary:hover {
 				transform: translateY(-2px);
 				box-shadow: 0 20px 32px rgba(255, 127, 80, 0.45);
-			}
-
-			.float-icons {
-				position: absolute;
-				inset: 0;
-				pointer-events: none;
-			}
-
-			.icon {
-				position: absolute;
-				width: 64px;
-				height: 64px;
-				border-radius: 16px;
-				background: rgba(255, 255, 255, 0.8);
-				box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-				display: grid;
-				place-items: center;
-				font-size: 28px;
-				animation: float 6s ease-in-out infinite;
-			}
-
-			.icon:nth-child(1) {
-				top: 10%;
-				left: 12%;
-			}
-			.icon:nth-child(2) {
-				bottom: 14%;
-				left: 8%;
-				animation-delay: 1s;
-			}
-			.icon:nth-child(3) {
-				top: 12%;
-				right: 14%;
-				animation-delay: 1.8s;
-			}
-			.icon:nth-child(4) {
-				bottom: 12%;
-				right: 10%;
-				animation-delay: 2.4s;
-			}
-
-			@keyframes float {
-				0%,
-				100% {
-					transform: translateY(0);
-				}
-				50% {
-					transform: translateY(-10px);
-				}
 			}
 
 			.modal-overlay {
@@ -168,15 +115,9 @@
 		</style>
 	</head>
 	<body>
-		<div class="float-icons">
-			<div class="icon">🕵️</div>
-			<div class="icon">🔍</div>
-			<div class="icon">🗺️</div>
-			<div class="icon">🕰️</div>
-		</div>
 		<div class="hero">
 			<h1>Detectives</h1>
-			<p>A quiet city. A missing card. Assemble clues and unmask the hidden trio.</p>
+			<p>Quick table talk, bold guesses, and a mystery in the middle.</p>
 			<button class="btn-primary" id="play-btn">Play Game</button>
 		</div>
 
