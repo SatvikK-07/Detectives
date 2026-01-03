@@ -411,13 +411,30 @@ function closeGuessModal() {
 function openHandModal() {
 	if (!handModal || !handModalBody) return;
 	handModalBody.innerHTML = "";
-	const hand = hardState.hands[hardState.players[hardState.currentTurnIndex]] || [];
-	hand.forEach((id) => {
-		const div = document.createElement("div");
-		div.className = "card card-img guess-option";
-		div.style.backgroundImage = `url(${hardIdToImage(id)})`;
-		handModalBody.appendChild(div);
-	});
+	let hand = [];
+	if (mode === "hard") {
+		hand = hardState.hands[hardState.players[hardState.currentTurnIndex]] || [];
+		hand.forEach((id) => {
+			const div = document.createElement("div");
+			div.className = "card card-img guess-option";
+			div.style.backgroundImage = `url(${hardIdToImage(id)})`;
+			handModalBody.appendChild(div);
+		});
+	} else {
+		hand = classicState.hands[classicState.players[classicState.currentTurnIndex]] || [];
+		hand.forEach((id) => {
+			const div = document.createElement("div");
+			div.className = "card guess-option";
+			div.textContent = numberToLetter(id, mode);
+			handModalBody.appendChild(div);
+		});
+	}
+	if (hand.length === 0) {
+		const empty = document.createElement("div");
+		empty.className = "muted";
+		empty.textContent = "No cards.";
+		handModalBody.appendChild(empty);
+	}
 	handModal.style.display = "flex";
 }
 
@@ -968,7 +985,8 @@ function setupHardMode() {
 		playerCountSelect.onchange = initHardGame;
 	}
 	if (showHandBtn) {
-		showHandBtn.onclick = toggleHardHand;
+		// Show the hand in a modal instead of toggling an inline strip
+		showHandBtn.onclick = openHandModal;
 	}
 	initHardGame();
 }
@@ -986,6 +1004,11 @@ document.addEventListener("DOMContentLoaded", () => {
 	if (closeQueryModalBtn) closeQueryModalBtn.onclick = closeQueryModal;
 	if (chooseQueryButton) chooseQueryButton.onclick = openQueryModal;
 	if (showHandBtn) showHandBtn.onclick = openHandModal;
+	if (handModal) {
+		handModal.addEventListener("click", (e) => {
+			if (e.target === handModal) closeHandModal();
+		});
+	}
 	if (restartButton)
 		restartButton.onclick = () => {
 			if (mode === "hard") initHardGame();
