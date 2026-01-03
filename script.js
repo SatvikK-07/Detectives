@@ -110,6 +110,12 @@ const queryModalUsed = getEl("query-modal-used");
 const handModal = getEl("hand-modal");
 const handModalClose = getEl("close-hand-modal");
 const handModalBody = getEl("hand-modal-body");
+const resultModal = getEl("result-modal");
+const resultTitle = getEl("result-title");
+const resultMessage = getEl("result-message");
+const closeResultModalBtn = getEl("close-result-modal");
+const resultRestartBtn = getEl("result-restart");
+const resultNewBtn = getEl("result-new");
 const playersLayout = getEl("players-layout");
 const askModal = getEl("ask-modal");
 const askModalBody = getEl("ask-modal-body");
@@ -158,6 +164,8 @@ const hardCardKeys = [
 	"@",
 ];
 
+const fastCardKeys = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+
 const hardPlayerColors = [
 	"#ff7f50",
 	"#00a7a0",
@@ -172,6 +180,14 @@ const hardQueries = config.hard.queries.map((combo, idx) => ({
 	combo,
 	image: `query2/l${idx + 1}.png`,
 }));
+
+const fastQueries = config.easy.queries.map((combo, idx) => ({
+	id: idx + 1,
+	combo,
+	image: `query1/q${idx + 1}.png`,
+}));
+
+const isHardLikeMode = mode === "hard" || mode === "fast";
 
 const layoutPositions = {
 	3: [
@@ -202,9 +218,34 @@ const layoutPositions = {
 	],
 };
 
-function hardGuessCount() {
+function currentHiddenCount() {
+	if (mode === "fast") return 1;
 	if (mode !== "hard") return config[mode]?.cardsToGuess || 3;
 	return hardState.numPlayers === 5 ? 2 : 3;
+}
+
+function cardsPerPlayerByCount(playerCount) {
+	if (mode === "fast") return 3;
+	if (mode !== "hard") return config[mode]?.cardsPerPlayer || 3;
+	const perPlayerMap = { 3: 8, 4: 6, 5: 5, 6: 4 };
+	return perPlayerMap[playerCount] || 3;
+}
+
+function hardLikeTotalCards() {
+	return mode === "fast" ? 10 : 27;
+}
+
+function hardLikeCardKeys() {
+	return mode === "fast" ? fastCardKeys : hardCardKeys;
+}
+
+function hardLikeQueries() {
+	return mode === "fast" ? fastQueries : hardQueries;
+}
+
+function hardGuessCount() {
+	if (!isHardLikeMode) return config[mode]?.cardsToGuess || 3;
+	return currentHiddenCount();
 }
 
 const classicState = {
@@ -324,7 +365,7 @@ function resetAskButtons() {
 }
 
 function updateNextButton(show) {
-	nextTurnBtn.style.display = show ? "inline-block" : "none";
+	if (nextTurnBtn) nextTurnBtn.style.display = "none";
 }
 
 function buildTokenDots(tokens = []) {
@@ -343,7 +384,7 @@ function buildTokenDots(tokens = []) {
 }
 
 function openQueryModal() {
-	if (mode !== "hard") return;
+	if (!isHardLikeMode) return;
 	if (!queryModal) return;
 	renderQueryModal();
 	queryModal.style.display = "flex";
@@ -396,7 +437,7 @@ function renderQueryModal() {
 function openGuessModal() {
 	if (!guessModal) return;
 	guessModal.style.display = "flex";
-	if (mode === "hard") {
+	if (isHardLikeMode) {
 		renderHardGuessOptions();
 	} else {
 		drawClassicGuessOptions();
@@ -408,16 +449,36 @@ function closeGuessModal() {
 	guessModal.style.display = "none";
 }
 
+function showResultModal({ title, message }) {
+	if (!resultModal) return;
+	if (resultTitle) resultTitle.textContent = title;
+	if (resultMessage) resultMessage.textContent = message;
+	resultModal.style.display = "flex";
+	if (title.toLowerCase().includes("correct")) {
+		resultModal.classList.add("celebrate");
+		setTimeout(() => resultModal.classList.remove("celebrate"), 1500);
+	}
+}
+
+function closeResultModal() {
+	if (resultModal) resultModal.style.display = "none";
+}
+
 function openHandModal() {
 	if (!handModal || !handModalBody) return;
 	handModalBody.innerHTML = "";
 	let hand = [];
-	if (mode === "hard") {
+	if (isHardLikeMode) {
 		hand = hardState.hands[hardState.players[hardState.currentTurnIndex]] || [];
 		hand.forEach((id) => {
 			const div = document.createElement("div");
-			div.className = "card card-img guess-option";
-			div.style.backgroundImage = `url(${hardIdToImage(id)})`;
+			if (mode === "hard") {
+				div.className = "card card-img guess-option";
+				div.style.backgroundImage = `url(${hardIdToImage(id)})`;
+			} else {
+				div.className = "card guess-option";
+				div.textContent = hardIdToKey(id);
+			}
 			handModalBody.appendChild(div);
 		});
 	} else {
@@ -541,18 +602,18 @@ function handleClassicGuess() {
 		alert(`Select exactly ${config[mode].cardsToGuess} card(s).`);
 		return false;
 	}
+	const guesser = classicState.players[classicState.currentTurnIndex];
 	const guessed = [...classicState.selectedGuess].sort().join(",");
 	const actual = [...classicState.hiddenCards].sort().join(",");
-	if (guessed === actual) {
-		alert("🎉 Correct! You win!");
-	} else {
-		alert(
-			`❌ Wrong. The hidden cards were: ${classicState.hiddenCards
-				.map((n) => numberToLetter(n, mode))
-				.join(", ")}`
-		);
-	}
-	setTimeout(initClassicGame, 1500);
+	const success = guessed === actual;
+	showResultModal({
+		title: success ? "Correct!" : "Incorrect",
+		message: success
+			? `${guesser} solved the case!`
+			: `Wrong guess. Hidden cards were ${classicState.hiddenCards
+					.map((n) => numberToLetter(n, mode))
+					.join(", ")}.`,
+	});
 	return true;
 }
 
@@ -602,8 +663,9 @@ function handleClassicQuery(from, to) {
 	scrollLogToBottom();
 	resetAskButtons();
 	classicState.selectedQuery = null;
-	updateNextButton(true);
-	setStatus(`${classicState.players[classicState.currentTurnIndex]}'s turn`);
+	updateNextButton(false);
+	setStatus(`${from} asked ${to}. Moving to next turn...`);
+	setTimeout(nextClassicTurn, 600);
 }
 
 function nextClassicTurn() {
@@ -616,11 +678,15 @@ function nextClassicTurn() {
 
 // -------- Hard mode --------
 function hardIdToKey(id) {
+	if (mode === "fast") {
+		return fastCardKeys[id - 1] || String(id);
+	}
 	if (id === 27) return "@";
 	return String.fromCharCode(96 + id);
 }
 
 function hardIdToImage(id) {
+	if (mode === "fast") return null;
 	return `playCards/${hardIdToKey(id)}.png`;
 }
 
@@ -631,12 +697,7 @@ function formatQueryText(combo) {
 function renderHiddenStack() {
 	if (!hiddenStackEl) return;
 	hiddenStackEl.innerHTML = "";
-	const count =
-		mode === "hard"
-			? hardState.numPlayers === 5
-				? 2
-				: 3
-			: config[mode]?.cardsToGuess || 3;
+	const count = currentHiddenCount();
 	for (let i = 0; i < count; i++) {
 		const card = document.createElement("div");
 		card.className = "hidden-card";
@@ -666,9 +727,10 @@ function renderHardQueryPiles() {
 	queryContainer.innerHTML = "";
 	queryContainer.classList.add("query-piles");
 	queryContainer.style.display = "grid";
-	queryContainer.style.gridTemplateColumns = "repeat(3, minmax(120px, 1fr))";
+	queryContainer.style.gridTemplateColumns = "repeat(3, 140px)";
 	queryContainer.style.justifyItems = "center";
-	queryContainer.style.gap = "16px";
+	queryContainer.style.justifyContent = "center";
+	queryContainer.style.gap = "10px";
 	hardState.queryPiles.forEach((pile, idx) => {
 		const wrapper = document.createElement("div");
 		wrapper.className = "query-pile";
@@ -755,11 +817,12 @@ function handleHardQuery(target) {
 	renderTokensLine();
 	renderHardQueryPiles();
 	resetAskButtons();
-	updateNextButton(true);
-	setStatus(`${from} asked ${target}. Click Next Turn.`);
+	updateNextButton(false);
+	setStatus(`${from} asked ${target}. Moving to next turn...`);
 	hardState.selectedQueryCard = null;
 	hardState.selectedQuerySource = null;
 	renderPlayersLayout();
+	setTimeout(nextHardTurn, 600);
 }
 
 function renderHardHand() {
@@ -771,12 +834,16 @@ function renderHardHand() {
 	}
 	handCount.textContent = `${hand.length} cards`;
 	yourCardsContainer.innerHTML = hand
-		.map(
-			(id) =>
-				`<div class="card card-img" style="background-image:url('${hardIdToImage(
+		.map((id) => {
+			if (mode === "hard") {
+				return `<div class="card card-img" style="background-image:url('${hardIdToImage(
 					id
-				)}')" aria-label="${hardIdToKey(id)}"></div>`
-		)
+				)}')" aria-label="${hardIdToKey(id)}"></div>`;
+			}
+			return `<div class="card" aria-label="${hardIdToKey(id)}">${hardIdToKey(
+				id
+			)}</div>`;
+		})
 		.join("");
 }
 
@@ -795,11 +862,17 @@ function toggleHardHand() {
 
 function renderHardGuessOptions() {
 	guessOptions.innerHTML = "";
-	hardCardKeys.forEach((key, idx) => {
+	const keys = hardLikeCardKeys();
+	keys.forEach((key, idx) => {
 		const id = idx + 1;
 		const div = document.createElement("div");
-		div.className = "card card-img guess-option";
-		div.style.backgroundImage = `url(playCards/${key}.png)`;
+		if (mode === "hard") {
+			div.className = "card card-img guess-option";
+			div.style.backgroundImage = `url(playCards/${key}.png)`;
+		} else {
+			div.className = "card guess-option";
+			div.textContent = key;
+		}
 		if (hardState.selectedGuess.includes(id)) {
 			div.classList.add("selected");
 		}
@@ -825,24 +898,23 @@ function handleHardGuess() {
 		alert(`Select exactly ${guessTarget} card(s).`);
 		return false;
 	}
+	const guesser = hardState.players[hardState.currentTurnIndex];
 	const guessed = [...hardState.selectedGuess].sort();
 	const actual = [...hardState.hiddenCards].sort();
 	const correct = guessed.every((val, idx) => val === actual[idx]);
-	if (correct) {
-		alert("🎉 Correct! You solved the case!");
-	} else {
-		alert(
-			`❌ Wrong. Hidden cards were ${hardState.hiddenCards
-				.map((id) => hardIdToKey(id))
-				.join(", ")}. Game over.`
-		);
-	}
-	setTimeout(initHardGame, 1800);
+	showResultModal({
+		title: correct ? "Correct!" : "Incorrect",
+		message: correct
+			? `${guesser} solved the case!`
+			: `Wrong guess. Hidden cards were ${hardState.hiddenCards
+					.map((id) => hardIdToKey(id))
+					.join(", ")}. Game over.`,
+	});
 	return true;
 }
 
 function maybeRunBotTurn() {
-	if (mode !== "hard") return;
+	if (!isHardLikeMode) return;
 	if (hardState.numPlayers !== 3 || hardState.botCount === 0) return;
 	const current = hardState.players[hardState.currentTurnIndex];
 	if (hardState.roles[current] !== "bot") return;
@@ -884,7 +956,8 @@ function nextHardTurn() {
 
 function initHardGame() {
 	queryContainer.classList.add("query-piles");
-	if (playerCountWrapper) playerCountWrapper.style.display = "inline-flex";
+	if (playerCountWrapper)
+		playerCountWrapper.style.display = mode === "fast" ? "none" : "inline-flex";
 	if (hiddenStackEl) hiddenStackEl.style.display = "block";
 	if (tokensLine) tokensLine.innerHTML = "";
 	if (showHandBtn) showHandBtn.style.display = "inline-block";
@@ -893,19 +966,24 @@ function initHardGame() {
 		logBox.parentElement.style.display = "none";
 	if (showHandBtn) showHandBtn.textContent = "Show My Cards";
 
-	const desiredPlayers = [3, 4, 5, 6].includes(urlPlayers)
-		? urlPlayers
-		: parseInt(playerCountSelect?.value || "3", 10);
+	const desiredPlayers =
+		mode === "fast"
+			? 3
+			: [3, 4, 5, 6].includes(urlPlayers)
+				? urlPlayers
+				: parseInt(playerCountSelect?.value || "3", 10);
 	hardState.numPlayers = [3, 4, 5, 6].includes(desiredPlayers) ? desiredPlayers : 3;
 	if (playerCountSelect) playerCountSelect.value = String(hardState.numPlayers);
-	const hiddenMap = { 3: 3, 4: 3, 5: 2, 6: 3 };
-	const perPlayerMap = { 3: 8, 4: 6, 5: 5, 6: 4 };
-	hardState.hiddenCount = hiddenMap[hardState.numPlayers] || 3;
 	hardState.botCount =
-		hardState.numPlayers === 3 ? Math.min(2, Math.max(0, urlBots || 0)) : 0;
+		hardState.numPlayers === 3 && isHardLikeMode
+			? Math.min(2, Math.max(0, urlBots || 0))
+			: 0;
 
-	const deckIds = shuffle(Array.from({ length: 27 }, (_, i) => i + 1));
-	const hiddenCount = hardState.hiddenCount || 2;
+	const deckIds = shuffle(
+		Array.from({ length: hardLikeTotalCards() }, (_, i) => i + 1)
+	);
+	const hiddenCount = currentHiddenCount();
+	hardState.hiddenCount = hiddenCount;
 	hardState.hiddenCards = deckIds.slice(0, hiddenCount);
 	const remaining = deckIds.slice(hiddenCount);
 
@@ -935,10 +1013,7 @@ function initHardGame() {
 	});
 	hardState.hands = {};
 	hardState.players.forEach((p) => (hardState.hands[p] = []));
-	const perPlayer = perPlayerMap[hardState.numPlayers] || Math.max(
-		1,
-		Math.min(5, Math.floor(remaining.length / hardState.numPlayers))
-	);
+	const perPlayer = cardsPerPlayerByCount(hardState.numPlayers);
 	const dealable = remaining.slice(0, perPlayer * hardState.numPlayers);
 	dealable.forEach((card, idx) => {
 		const targetPlayer = hardState.players[idx % hardState.numPlayers];
@@ -954,8 +1029,13 @@ function initHardGame() {
 	hardState.selectedGuess = [];
 	hardState.showingHand = false;
 
-	const qDeck = shuffle(hardQueries.slice());
-	hardState.queryPiles = [qDeck.slice(0, 12), qDeck.slice(12, 24), qDeck.slice(24)];
+	const qDeck = shuffle(hardLikeQueries().slice());
+	const chunk = Math.ceil(qDeck.length / 3);
+	hardState.queryPiles = [
+		qDeck.slice(0, chunk),
+		qDeck.slice(chunk, chunk * 2),
+		qDeck.slice(chunk * 2),
+	];
 
 	clearLog();
 	renderHiddenStack();
@@ -995,7 +1075,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	if (guessModalClose) guessModalClose.onclick = closeGuessModal;
 	if (guessModalSubmit) {
 		guessModalSubmit.onclick = () => {
-			const ok = mode === "hard" ? handleHardGuess() : handleClassicGuess();
+			const ok = isHardLikeMode ? handleHardGuess() : handleClassicGuess();
 			if (ok) closeGuessModal();
 		};
 	}
@@ -1004,6 +1084,22 @@ document.addEventListener("DOMContentLoaded", () => {
 	if (closeQueryModalBtn) closeQueryModalBtn.onclick = closeQueryModal;
 	if (chooseQueryButton) chooseQueryButton.onclick = openQueryModal;
 	if (showHandBtn) showHandBtn.onclick = openHandModal;
+	if (closeResultModalBtn) closeResultModalBtn.onclick = closeResultModal;
+	if (resultModal) {
+		resultModal.addEventListener("click", (e) => {
+			if (e.target === resultModal) closeResultModal();
+		});
+	}
+	if (resultRestartBtn)
+		resultRestartBtn.onclick = () => {
+			closeResultModal();
+			if (isHardLikeMode) initHardGame();
+			else initClassicGame();
+		};
+	if (resultNewBtn)
+		resultNewBtn.onclick = () => {
+			window.location.href = "index.html";
+		};
 	if (handModal) {
 		handModal.addEventListener("click", (e) => {
 			if (e.target === handModal) closeHandModal();
@@ -1011,7 +1107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 	if (restartButton)
 		restartButton.onclick = () => {
-			if (mode === "hard") initHardGame();
+			if (isHardLikeMode) initHardGame();
 			else initClassicGame();
 		};
 	if (askModal) {
@@ -1019,7 +1115,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (e.target === askModal) closeAskModal();
 		});
 	}
-	if (mode === "hard") {
+	if (isHardLikeMode) {
 		setupHardMode();
 	} else {
 		setupClassicMode();

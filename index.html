@@ -192,14 +192,16 @@
 
 		<div class="modal-overlay" id="players-modal">
 			<div class="modal">
-				<h3>Long Game</h3>
-				<label for="player-count-input">Choose number of players</label>
-				<select id="player-count-input" class="player-select">
-					<option value="3">3 players</option>
-					<option value="4">4 players</option>
-					<option value="5">5 players</option>
-					<option value="6">6 players</option>
-				</select>
+				<h3 id="players-modal-title">Long Game</h3>
+				<div id="player-count-wrapper">
+					<label for="player-count-input">Choose number of players</label>
+					<select id="player-count-input" class="player-select">
+						<option value="3">3 players</option>
+						<option value="4">4 players</option>
+						<option value="5">5 players</option>
+						<option value="6">6 players</option>
+					</select>
+				</div>
 				<div id="bot-options" style="margin-top: 12px; display: block">
 					<label for="bot-count-input">Bots (only for 3-player game)</label>
 					<select id="bot-count-input" class="player-select">
@@ -210,7 +212,7 @@
 				</div>
 				<div id="names-container" style="margin-top: 12px"></div>
 				<div class="choices" style="margin-top: 16px">
-					<button class="btn-primary" id="start-long">Start Game</button>
+					<button class="btn-primary" id="start-mode">Start Game</button>
 				</div>
 			</div>
 		</div>
@@ -218,10 +220,13 @@
 		<script>
 			const modeModal = document.getElementById("mode-modal");
 			const playersModal = document.getElementById("players-modal");
+			const playersModalTitle = document.getElementById("players-modal-title");
 			const playerSelect = document.getElementById("player-count-input");
+			const playerCountWrapper = document.getElementById("player-count-wrapper");
 			const botSelect = document.getElementById("bot-count-input");
 			const botOptions = document.getElementById("bot-options");
 			const namesContainer = document.getElementById("names-container");
+			let currentModeChoice = "long";
 
 			const buildNameInputs = () => {
 				const total = parseInt(playerSelect.value, 10);
@@ -279,11 +284,25 @@
 				modeModal.style.display = "flex";
 			};
 			document.getElementById("fast-game").onclick = () => {
-				window.location.href = "start.html?mode=easy";
-			};
-			document.getElementById("long-game").onclick = () => {
+				currentModeChoice = "fast";
+				playersModalTitle.textContent = "Fast Game";
+				playerSelect.value = "3";
+				playerSelect.disabled = true;
+				playerCountWrapper.style.display = "none";
+				botOptions.style.display = "block";
+				buildNameInputs();
 				modeModal.style.display = "none";
 				playersModal.style.display = "flex";
+			};
+			document.getElementById("long-game").onclick = () => {
+				currentModeChoice = "long";
+				playersModalTitle.textContent = "Long Game";
+				playerSelect.disabled = false;
+				playerCountWrapper.style.display = "block";
+				modeModal.style.display = "none";
+				playersModal.style.display = "flex";
+				botOptions.style.display = playerSelect.value === "3" ? "block" : "none";
+				buildNameInputs();
 			};
 			playerSelect.addEventListener("change", () => {
 				botOptions.style.display = playerSelect.value === "3" ? "block" : "none";
@@ -292,10 +311,9 @@
 			botSelect.addEventListener("change", () => {
 				buildNameInputs();
 			});
-			document.getElementById("start-long").onclick = () => {
-				const players = playerSelect.value;
-				const botCount =
-					players === "3" ? botSelect.value : 0;
+			document.getElementById("start-mode").onclick = () => {
+				const players = currentModeChoice === "fast" ? "3" : playerSelect.value;
+				const botCount = players === "3" ? botSelect.value : 0;
 				const entries = namesContainer.querySelectorAll(".name-entry, [data-type='bot']");
 				const names = Array.from(entries).map((el) => {
 					if (el.classList.contains("name-entry")) {
@@ -304,7 +322,8 @@
 					return el.dataset.name || "Bot";
 				});
 				const namesParam = encodeURIComponent(JSON.stringify(names));
-				window.location.href = `start.html?mode=hard&players=${players}&bots=${botCount}&names=${namesParam}`;
+				const modeParam = currentModeChoice === "fast" ? "fast" : "hard";
+				window.location.href = `start.html?mode=${modeParam}&players=${players}&bots=${botCount}&names=${namesParam}`;
 			};
 			buildNameInputs();
 			[modeModal, playersModal].forEach((modal) => {

@@ -512,11 +512,49 @@ body {
 	border: 2px solid var(--panel-border);
 	border-radius: 16px;
 	box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
-	width: min(900px, 92vw);
+	width: min(700px, 92vw);
 	max-height: 90vh;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+}
+
+#ask-modal .modal,
+#ask-modal .modal .choices {
+	width: auto;
+	max-width: 420px;
+	min-width: 280px;
+}
+
+#ask-modal .choices {
+	justify-items: center;
+	gap: 12px;
+}
+
+#ask-modal .choice-btn {
+	min-width: 220px;
+	width: auto;
+	padding-left: 16px;
+	padding-right: 16px;
+	text-align: center;
+}
+
+#result-modal.celebrate .modal {
+	box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18), 0 0 28px rgba(255, 183, 3, 0.5),
+		0 0 38px rgba(255, 127, 80, 0.55);
+	animation: pop 0.45s ease;
+}
+
+@keyframes pop {
+	0% {
+		transform: scale(0.9);
+	}
+	60% {
+		transform: scale(1.04);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 
 .modal-header {
