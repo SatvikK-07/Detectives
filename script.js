@@ -130,6 +130,7 @@ const playerCountSelect = getEl("player-count");
 const playerCountWrapper = getEl("player-count-wrapper");
 const tokensLine = getEl("tokens-line");
 const hiddenStackEl = getEl("hidden-stack");
+const usedGridEl = getEl("used-grid");
 const showHandBtn = getEl("show-hand-btn");
 const handCount = getEl("hand-count");
 let askHandler = null;
@@ -191,30 +192,30 @@ const isHardLikeMode = mode === "hard" || mode === "fast";
 
 const layoutPositions = {
 	3: [
-		{ left: "42%", top: "6%" },
-		{ left: "18%", top: "39%" },
-		{ left: "66%", top: "39%" },
+		{ left: "86%", top: "14%" },
+		{ left: "86%", top: "40%" },
+		{ left: "86%", top: "66%" },
 	],
 	4: [
-		{ left: "28%", top: "6%" },
-		{ left: "58%", top: "6%" },
-		{ left: "18%", top: "39%" },
-		{ left: "68%", top: "39%" },
+		{ left: "86%", top: "8%" },
+		{ left: "86%", top: "26%" },
+		{ left: "86%", top: "44%" },
+		{ left: "86%", top: "62%" },
 	],
 	5: [
-		{ left: "42%", top: "0%" },
-		{ left: "20%", top: "22%" },
-		{ left: "64%", top: "22%" },
-		{ left: "30%", top: "44%" },
-		{ left: "54%", top: "44%" },
+		{ left: "86%", top: "6%" },
+		{ left: "86%", top: "24%" },
+		{ left: "86%", top: "42%" },
+		{ left: "86%", top: "60%" },
+		{ left: "86%", top: "78%" },
 	],
 	6: [
-		{ left: "18%", top: "12%" },
-		{ left: "44%", top: "12%" },
-		{ left: "70%", top: "12%" },
-		{ left: "18%", top: "44%" },
-		{ left: "44%", top: "44%" },
-		{ left: "70%", top: "44%" },
+		{ left: "86%", top: "6%" },
+		{ left: "86%", top: "20%" },
+		{ left: "86%", top: "34%" },
+		{ left: "86%", top: "48%" },
+		{ left: "86%", top: "62%" },
+		{ left: "86%", top: "76%" },
 	],
 };
 
@@ -276,6 +277,7 @@ const hardState = {
 	hiddenCount: 3,
 	botCount: 0,
 	roles: {},
+	lastAskResult: null,
 };
 
 function shuffle(arr) {
@@ -338,7 +340,6 @@ function renderPlayersLayout() {
 		const role = p;
 		card.style.left = positions[idx]?.left || "10%";
 		card.style.top = positions[idx]?.top || "10%";
-		const count = hardState.hands[p]?.length || 0;
 		const showRole = hardState.players.length === 3;
 		const roleLabel =
 			showRole && hardState.roles[p] === "bot"
@@ -347,7 +348,7 @@ function renderPlayersLayout() {
 					? "Human"
 					: "";
 		const colorDot = hardPlayerColors[idx % hardPlayerColors.length];
-		card.innerHTML = `${roleLabel ? `<span class=\"role\">${roleLabel}</span>` : ""}<span class=\"name\"><span class=\"color-dot\" style=\"width:12px;height:12px;background:${colorDot};margin-right:6px;display:inline-block;border-radius:50%;\"></span>${role}</span><div class=\"info\">${count} card${count === 1 ? "" : "s"}</div>`;
+		card.innerHTML = `${roleLabel ? `<span class=\"role\">${roleLabel}</span>` : ""}<span class=\"name\"><span class=\"color-dot\" style=\"width:12px;height:12px;background:${colorDot};margin-right:6px;display:inline-block;border-radius:50%;\"></span>${role}</span>`;
 		playersLayout.appendChild(card);
 	});
 }
@@ -664,8 +665,8 @@ function handleClassicQuery(from, to) {
 	resetAskButtons();
 	classicState.selectedQuery = null;
 	updateNextButton(false);
-	setStatus(`${from} asked ${to}. Moving to next turn...`);
-	setTimeout(nextClassicTurn, 600);
+	setStatus(`${from} asked ${to} → ${matchCount} match(es).`);
+	setTimeout(nextClassicTurn, 500);
 }
 
 function nextClassicTurn() {
@@ -727,9 +728,9 @@ function renderHardQueryPiles() {
 	queryContainer.innerHTML = "";
 	queryContainer.classList.add("query-piles");
 	queryContainer.style.display = "grid";
-	queryContainer.style.gridTemplateColumns = "repeat(3, 140px)";
+	queryContainer.style.gridTemplateColumns = "1fr";
 	queryContainer.style.justifyItems = "center";
-	queryContainer.style.justifyContent = "center";
+	queryContainer.style.justifyContent = "flex-start";
 	queryContainer.style.gap = "10px";
 	hardState.queryPiles.forEach((pile, idx) => {
 		const wrapper = document.createElement("div");
@@ -740,7 +741,8 @@ function renderHardQueryPiles() {
 		const topCard = pile[0];
 		if (topCard) {
 			cardFace.style.backgroundImage = `url(${topCard.image})`;
-			cardFace.onclick = () => openQueryModal();
+			cardFace.onclick = () =>
+				selectHardQueryCard(topCard, { type: "pile", pileIndex: idx });
 			cardFace.title = `Deck ${idx + 1}`;
 		} else {
 			cardFace.classList.add("empty");
@@ -776,13 +778,19 @@ function showHardAskButtons() {
 	openAskModal(options);
 }
 
-function attachTokenToUsedCard(card, token) {
+function attachTokenToUsedCard(card, token, matches) {
 	let entry = hardState.usedCards.find((u) => u.card.id === card.id);
 	if (!entry) {
 		entry = { card, tokens: [] };
 		hardState.usedCards.push(entry);
 	}
-	entry.tokens.push(token);
+	const existing = entry.tokens.find((t) => t.player === token.player);
+	if (existing) {
+		existing.count = matches;
+		return false;
+	}
+	entry.tokens.push({ ...token, count: matches });
+	return true;
 }
 
 function handleHardQuery(target) {
@@ -798,31 +806,31 @@ function handleHardQuery(target) {
 	];
 	const token = {
 		color,
+		player: target,
 		fromShort: target.replace("Player ", "P"),
 		toShort: from.replace("Player ", "P"),
-		count: matches,
 	};
 
 	if (source.type === "pile") {
 		hardState.queryPiles[source.pileIndex].shift();
 	}
-	for (let i = 0; i < Math.max(1, matches); i++) {
-		attachTokenToUsedCard(queryCard, token);
-	}
-	if (matches > 0) {
+	const newTokenAdded = attachTokenToUsedCard(queryCard, token, matches);
+	if (matches > 0 && newTokenAdded) {
 		const remaining = hardState.tokensRemaining[from];
 		hardState.tokensRemaining[from] = Math.max(0, remaining - matches);
 	}
+	hardState.lastAskResult = { target, matches, card: queryCard };
 
 	renderTokensLine();
 	renderHardQueryPiles();
+	renderUsedGrid();
 	resetAskButtons();
 	updateNextButton(false);
-	setStatus(`${from} asked ${target}. Moving to next turn...`);
+	setStatus(`${from} asked ${target} → ${matches} match(es).`);
 	hardState.selectedQueryCard = null;
 	hardState.selectedQuerySource = null;
 	renderPlayersLayout();
-	setTimeout(nextHardTurn, 600);
+	setTimeout(nextHardTurn, 500);
 }
 
 function renderHardHand() {
@@ -881,6 +889,25 @@ function renderHardGuessOptions() {
 	});
 }
 
+function renderUsedGrid() {
+	if (!usedGridEl) return;
+	usedGridEl.innerHTML = "";
+	hardState.usedCards.forEach((entry) => {
+		const slot = document.createElement("div");
+		slot.className = "card-frame used-card";
+		if (entry.card.image) {
+			slot.style.backgroundImage = `url(${entry.card.image})`;
+		} else if (entry.card.combo) {
+			slot.textContent = formatQueryText(entry.card.combo);
+		}
+		const dots = buildTokenDots(entry.tokens);
+		slot.appendChild(dots);
+		slot.onclick = () =>
+			selectHardQueryCard(entry.card, { type: "used", cardId: entry.card.id });
+		usedGridEl.appendChild(slot);
+	});
+}
+
 function selectHardGuess(id, element) {
 	const index = hardState.selectedGuess.indexOf(id);
 	if (index !== -1) {
@@ -932,11 +959,6 @@ function maybeRunBotTurn() {
 	const target = targets[Math.floor(Math.random() * targets.length)];
 
 	handleHardQuery(target);
-
-	// Auto-advance
-	setTimeout(() => {
-		nextHardTurn();
-	}, 400);
 }
 
 function nextHardTurn() {
@@ -945,6 +967,7 @@ function nextHardTurn() {
 	hardState.showingHand = false;
 	hardState.selectedQueryCard = null;
 	hardState.selectedQuerySource = null;
+	hardState.lastAskResult = null;
 	updateShowHandButton();
 	renderHardHand();
 	renderPlayersLayout();
@@ -961,7 +984,7 @@ function initHardGame() {
 	if (hiddenStackEl) hiddenStackEl.style.display = "block";
 	if (tokensLine) tokensLine.innerHTML = "";
 	if (showHandBtn) showHandBtn.style.display = "inline-block";
-	if (chooseQueryButton) chooseQueryButton.style.display = "inline-block";
+	if (chooseQueryButton) chooseQueryButton.style.display = "none";
 	if (logBox && logBox.parentElement)
 		logBox.parentElement.style.display = "none";
 	if (showHandBtn) showHandBtn.textContent = "Show My Cards";
@@ -1041,6 +1064,7 @@ function initHardGame() {
 	renderHiddenStack();
 	renderTokensLine();
 	renderHardQueryPiles();
+	renderUsedGrid();
 	renderHardHand();
 	renderHardGuessOptions();
 	updateShowHandButton();
