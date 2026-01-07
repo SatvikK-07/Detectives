@@ -348,9 +348,18 @@ function renderPlayersLayout() {
 					? "Human"
 					: "";
 		const colorDot = hardPlayerColors[idx % hardPlayerColors.length];
-		card.innerHTML = `${roleLabel ? `<span class=\"role\">${roleLabel}</span>` : ""}<span class=\"name\"><span class=\"color-dot\" style=\"width:12px;height:12px;background:${colorDot};margin-right:6px;display:inline-block;border-radius:50%;\"></span>${role}</span>`;
+		const tokenCount = hardState.tokensRemaining[p] ?? 0;
+		card.innerHTML = `${roleLabel ? `<span class=\"role\">${roleLabel}</span>` : ""}<span class=\"name\"><span class=\"color-dot\" style=\"width:12px;height:12px;background:${colorDot};margin-right:6px;display:inline-block;border-radius:50%;\"></span>${role}</span><div class="token-counter"><span class="color-dot" style="width:10px;height:10px;background:${colorDot};"></span>${tokenCount} tokens</div>`;
 		playersLayout.appendChild(card);
 	});
+
+	// disable guessing on bot turns
+	if (guessButton && isHardLikeMode) {
+		const current = hardState.players[hardState.currentTurnIndex];
+		const isBotTurn = hardState.roles[current] === "bot";
+		guessButton.disabled = isBotTurn;
+		guessButton.style.opacity = isBotTurn ? "0.6" : "1";
+	}
 }
 
 function clearLog() {
@@ -373,13 +382,16 @@ function buildTokenDots(tokens = []) {
 	const wrap = document.createElement("div");
 	wrap.className = "token-dots";
 	tokens.forEach((t) => {
-		const dot = document.createElement("div");
-		dot.className = "token-dot";
-		dot.style.backgroundColor = t.color;
-		dot.title = `${t.fromShort || ""}${t.toShort ? `→${t.toShort}` : ""}${
-			t.count ? `: ${t.count}` : ""
-		}`;
-		wrap.appendChild(dot);
+		const count = Math.max(0, t.count || 0);
+		for (let i = 0; i < count; i++) {
+			const dot = document.createElement("div");
+			dot.className = "token-dot";
+			dot.style.backgroundColor = t.color;
+			dot.title = `${t.fromShort || ""}${t.toShort ? `→${t.toShort}` : ""}${
+				t.count ? `: ${t.count}` : ""
+			}`;
+			wrap.appendChild(dot);
+		}
 	});
 	return wrap;
 }
@@ -778,19 +790,23 @@ function showHardAskButtons() {
 	openAskModal(options);
 }
 
-function attachTokenToUsedCard(card, token, matches) {
+function attachTokenToUsedCard(card, token, matches, remainingTokens) {
 	let entry = hardState.usedCards.find((u) => u.card.id === card.id);
 	if (!entry) {
 		entry = { card, tokens: [] };
 		hardState.usedCards.push(entry);
 	}
 	const existing = entry.tokens.find((t) => t.player === token.player);
+	const prev = existing ? existing.count || 0 : 0;
+	const newCount = Math.min(matches, prev + remainingTokens);
+	const added = Math.max(0, newCount - prev);
 	if (existing) {
-		existing.count = matches;
-		return false;
+		existing.count = newCount;
+		existing.color = token.color;
+	} else {
+		entry.tokens.push({ ...token, count: newCount });
 	}
-	entry.tokens.push({ ...token, count: matches });
-	return true;
+	return added;
 }
 
 function handleHardQuery(target) {
@@ -801,6 +817,7 @@ function handleHardQuery(target) {
 	const matches = queryCard.combo.filter((c) => hardState.hands[target].includes(c))
 		.length;
 
+	const remainingTokens = hardState.tokensRemaining[target] || 0;
 	const color = hardPlayerColors[
 		hardState.players.indexOf(target) % hardPlayerColors.length
 	];
@@ -814,10 +831,9 @@ function handleHardQuery(target) {
 	if (source.type === "pile") {
 		hardState.queryPiles[source.pileIndex].shift();
 	}
-	const newTokenAdded = attachTokenToUsedCard(queryCard, token, matches);
-	if (matches > 0 && newTokenAdded) {
-		const remaining = hardState.tokensRemaining[from];
-		hardState.tokensRemaining[from] = Math.max(0, remaining - matches);
+	const placed = attachTokenToUsedCard(queryCard, token, matches, remainingTokens);
+	if (placed > 0) {
+		hardState.tokensRemaining[target] = Math.max(0, remainingTokens - placed);
 	}
 	hardState.lastAskResult = { target, matches, card: queryCard };
 
@@ -826,7 +842,17 @@ function handleHardQuery(target) {
 	renderUsedGrid();
 	resetAskButtons();
 	updateNextButton(false);
-	setStatus(`${from} asked ${target} → ${matches} match(es).`);
+	if (matches > 0 && remainingTokens === 0) {
+		setStatus(`${target} is out of tokens. No tokens placed.`);
+	} else if (matches > 0 && placed < matches) {
+		setStatus(
+			`${from} asked ${target} → ${matches} match(es), placed ${placed} token(s).`
+		);
+	} else if (matches === 0) {
+		setStatus(`${from} asked ${target} → 0 match(es).`);
+	} else {
+		setStatus(`${from} asked ${target} → ${matches} match(es).`);
+	}
 	hardState.selectedQueryCard = null;
 	hardState.selectedQuerySource = null;
 	renderPlayersLayout();
@@ -895,6 +921,7 @@ function renderUsedGrid() {
 	hardState.usedCards.forEach((entry) => {
 		const slot = document.createElement("div");
 		slot.className = "card-frame used-card";
+		slot.dataset.cardId = entry.card.id;
 		if (entry.card.image) {
 			slot.style.backgroundImage = `url(${entry.card.image})`;
 		} else if (entry.card.combo) {
@@ -946,19 +973,47 @@ function maybeRunBotTurn() {
 	const current = hardState.players[hardState.currentTurnIndex];
 	if (hardState.roles[current] !== "bot") return;
 
-	// Pick first available pile top
-	const pileIndex = hardState.queryPiles.findIndex((pile) => pile[0]);
-	if (pileIndex === -1) return;
-	const queryCard = hardState.queryPiles[pileIndex][0];
-	hardState.selectedQueryCard = queryCard;
-	hardState.selectedQuerySource = { type: "pile", pileIndex };
+	// Build candidate list from pile tops and used cards (bots can reuse anytime)
+	const pileCandidates = hardState.queryPiles
+		.map((pile, idx) => (pile[0] ? { card: pile[0], source: { type: "pile", pileIndex: idx }, weight: 0 } : null))
+		.filter(Boolean);
+	const usedCandidates = hardState.usedCards.map((u) => {
+		const tokenCount = (u.tokens || []).reduce((sum, t) => sum + (t.count || 0), 0);
+		return { card: u.card, source: { type: "used", cardId: u.card.id }, weight: tokenCount };
+	});
+	const candidates = [...pileCandidates, ...usedCandidates];
+	if (!candidates.length) return;
 
-	// Choose a random target that is not the current bot
-	const targets = hardState.players.filter((p) => p !== current);
-	if (targets.length === 0) return;
-	const target = targets[Math.floor(Math.random() * targets.length)];
+	// Moderate difficulty: prefer lower-token used cards, otherwise earliest pile top
+	candidates.sort((a, b) => a.weight - b.weight);
+	const topWeight = candidates[0].weight;
+	const bestPool = candidates.filter((c) => c.weight === topWeight);
+	const pick = bestPool[Math.floor(Math.random() * bestPool.length)];
+	const { card: chosen, source } = pick;
 
-	handleHardQuery(target);
+	hardState.selectedQueryCard = chosen;
+	hardState.selectedQuerySource = source;
+
+	// Choose a target: prefer the player with most tokens remaining (excluding self)
+	const targetCandidates = hardState.players.filter((p) => p !== current);
+	if (targetCandidates.length === 0) return;
+	const maxTokens = Math.max(...targetCandidates.map((p) => hardState.tokensRemaining[p] || 0));
+	const best = targetCandidates.filter(
+		(p) => (hardState.tokensRemaining[p] || 0) === maxTokens
+	);
+	const target = best[Math.floor(Math.random() * best.length)];
+
+	// highlight chosen used card if applicable
+	if (source.type === "used") {
+		const slots = usedGridEl?.querySelectorAll(".card-frame") || [];
+		slots.forEach((el) => el.classList.remove("bot-highlight"));
+		const match = Array.from(slots).find((el) => el.dataset.cardId === String(source.cardId));
+		if (match) match.classList.add("bot-highlight");
+	}
+
+	setTimeout(() => {
+		handleHardQuery(target);
+	}, 1200);
 }
 
 function nextHardTurn() {
